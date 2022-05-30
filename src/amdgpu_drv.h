@@ -297,6 +297,13 @@ typedef struct {
 
 	Bool shadow_fb;
 	void *fb_shadow;
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+	struct {
+		Bool (*Setup)(ScreenPtr);
+		Bool (*Add)(ScreenPtr, PixmapPtr, ShadowUpdateProc, ShadowWindowProc, int, void *);
+		void (*UpdatePacked)(ScreenPtr, shadowBufPtr);
+	} shadow;
+#endif
 	struct amdgpu_buffer *front_buffer;
 
 	uint64_t vram_size;

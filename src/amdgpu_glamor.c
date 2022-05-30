@@ -44,13 +44,42 @@
 
 DevPrivateKeyRec amdgpu_pixmap_index;
 
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+void amdgpu_bind_glamor_api(void *glamor_module, AMDGPUInfoPtr info)
+{
+	info->glamor.init = LoaderSymbolFromModule(glamor_module, "glamor_init");
+#ifdef HAVE_GLAMOR_GLYPHS_INIT
+	info->glamor.glyphs_init = LoaderSymbolFromModule(glamor_module, "glamor_glyphs_init");
+#endif
+	info->glamor.xv_init = LoaderSymbolFromModule(glamor_module, "glamor_xv_init");
+	info->glamor.egl_init = LoaderSymbolFromModule(glamor_module, "glamor_egl_init");
+	info->glamor.egl_init_textured_pixmap = LoaderSymbolFromModule(glamor_module, "glamor_egl_init_textured_pixmap");
+	info->glamor.egl_create_textured_pixmap = LoaderSymbolFromModule(glamor_module, "glamor_egl_create_textured_pixmap");
+	info->glamor.egl_create_textured_pixmap_from_gbm_bo = LoaderSymbolFromModule(glamor_module, "glamor_egl_create_textured_pixmap_from_gbm_bo");
+	info->glamor.egl_exchange_buffers = LoaderSymbolFromModule(glamor_module, "glamor_exchange_buffers");
+#ifdef HAVE_GLAMOR_EGL_DESTROY_TEXTURED_PIXMAP
+	info->glamor.egl_destroy_textured_pixmap = LoaderSymbolFromModule(glamor_module, "glamor_egl_destroy_textured_pixmap");
+#endif
+	info->glamor.create_pixmap = LoaderSymbolFromModule(glamor_module, "glamor_create_pixmap");
+	info->glamor.pixmap_from_fd = LoaderSymbolFromModule(glamor_module, "glamor_pixmap_from_fd");
+	info->glamor.fd_from_pixmap = LoaderSymbolFromModule(glamor_module, "glamor_fd_from_pixmap");
+	info->glamor.validate_gc = LoaderSymbolFromModule(glamor_module, "glamor_validate_gc");
+	info->glamor.block_handler = LoaderSymbolFromModule(glamor_module, "glamor_block_handler");
+	info->glamor.finish = LoaderSymbolFromModule(glamor_module, "glamor_finish");
+}
+#endif
+
 void amdgpu_glamor_exchange_buffers(PixmapPtr src, PixmapPtr dst)
 {
 	AMDGPUInfoPtr info = AMDGPUPTR(xf86ScreenToScrn(dst->drawable.pScreen));
 
 	if (!info->use_glamor)
 		return;
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+	info->glamor.egl_exchange_buffers(src, dst);
+#else
 	glamor_egl_exchange_buffers(src, dst);
+#endif
 }
 
 Bool amdgpu_glamor_create_screen_resources(ScreenPtr screen)
@@ -63,7 +92,11 @@ Bool amdgpu_glamor_create_screen_resources(ScreenPtr screen)
 		return TRUE;
 
 #ifdef HAVE_GLAMOR_GLYPHS_INIT
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+	if (!info->glamor.glyphs_init(screen))
+#else
 	if (!glamor_glyphs_init(screen))
+#endif
 		return FALSE;
 #endif
 
@@ -99,6 +132,9 @@ Bool amdgpu_glamor_pre_init(ScrnInfoPtr scrn)
 
 	/* Load glamor module */
 	if ((glamor_module = xf86LoadSubModule(scrn, GLAMOR_EGL_MODULE_NAME))) {
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+		amdgpu_bind_glamor_api(glamor_module, info);
+#endif
 		version = xf86GetModuleVersion(glamor_module);
 		if (version < MODULE_VERSION_NUMERIC(0, 3, 1)) {
 			xf86DrvMsg(scrn->scrnIndex, X_ERROR,
@@ -115,7 +151,11 @@ Bool amdgpu_glamor_pre_init(ScrnInfoPtr scrn)
 				return FALSE;
 			}
 
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+			if (info->glamor.egl_init(scrn, pAMDGPUEnt->fd)) {
+#else
 			if (glamor_egl_init(scrn, pAMDGPUEnt->fd)) {
+#endif
 				xf86DrvMsg(scrn->scrnIndex, X_INFO,
 					   "glamor detected, initialising EGL layer.\n");
 			} else {
@@ -144,7 +184,11 @@ amdgpu_glamor_create_textured_pixmap(PixmapPtr pixmap, struct amdgpu_buffer *bo)
 		return TRUE;
 
 	if (bo->flags & AMDGPU_BO_FLAGS_GBM) {
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+		return info->glamor.egl_create_textured_pixmap_from_gbm_bo(pixmap,
+#else
 		return glamor_egl_create_textured_pixmap_from_gbm_bo(pixmap,
+#endif
 								     bo->bo.gbm
 #if XORG_VERSION_CURRENT > XORG_VERSION_NUMERIC(1,19,99,903,0)
 								     , FALSE
@@ -156,7 +200,11 @@ amdgpu_glamor_create_textured_pixmap(PixmapPtr pixmap, struct amdgpu_buffer *bo)
 		if (!amdgpu_bo_get_handle(bo, &bo_handle))
 			return FALSE;
 
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+		return info->glamor.egl_create_textured_pixmap(pixmap, bo_handle,
+#else
 		return glamor_egl_create_textured_pixmap(pixmap, bo_handle,
+#endif
 							 pixmap->devKind);
 	}
 }
@@ -178,7 +226,11 @@ static Bool amdgpu_glamor_destroy_pixmap(PixmapPtr pixmap)
 		}
 
 #ifdef HAVE_GLAMOR_EGL_DESTROY_TEXTURED_PIXMAP
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+		info->glamor.egl_destroy_textured_pixmap(pixmap);
+#else
 		glamor_egl_destroy_textured_pixmap(pixmap);
+#endif
 #endif
 		amdgpu_set_pixmap_bo(pixmap, NULL);
 	}
@@ -227,7 +279,11 @@ amdgpu_glamor_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 			usage |= AMDGPU_CREATE_PIXMAP_LINEAR |
 				 AMDGPU_CREATE_PIXMAP_GTT;
 		} else if (usage != CREATE_PIXMAP_USAGE_BACKING_PIXMAP) {
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+			pixmap = info->glamor.create_pixmap(screen, w, h, depth, usage);
+#else
 			pixmap = glamor_create_pixmap(screen, w, h, depth, usage);
+#endif
 			if (pixmap)
 				return pixmap;
 		}
@@ -292,7 +348,11 @@ fallback_glamor:
 	 * texture only pixmap and will never fallback to DDX layer
 	 * afterwards.
 	 */
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+	new_pixmap = info->glamor.create_pixmap(screen, w, h, depth, usage);
+#else
 	new_pixmap = glamor_create_pixmap(screen, w, h, depth, usage);
+#endif
 	amdgpu_bo_unref(&priv->bo);
 fallback_priv:
 	free(priv);
@@ -336,7 +396,12 @@ amdgpu_glamor_set_pixmap_bo(DrawablePtr drawable, PixmapPtr pixmap)
 	}
 
 	/* And redirect the pixmap to the new bo (for 3D). */
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+	AMDGPUInfoPtr info = AMDGPUPTR(xf86ScreenToScrn(screen));
+	info->glamor.egl_exchange_buffers(old, pixmap);
+#else
 	glamor_egl_exchange_buffers(old, pixmap);
+#endif
 	amdgpu_set_pixmap_private(pixmap, amdgpu_get_pixmap_private(old));
 	amdgpu_set_pixmap_private(old, priv);
 
@@ -390,7 +455,11 @@ amdgpu_glamor_share_pixmap_backing(PixmapPtr pixmap, ScreenPtr secondary,
 		amdgpu_glamor_set_pixmap_bo(&pixmap->drawable, linear);
 	}
 
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+	fd = info->glamor.fd_from_pixmap(screen, pixmap, &stride, &size);
+#else
 	fd = glamor_fd_from_pixmap(screen, pixmap, &stride, &size);
+#endif
 	if (fd < 0)
 		return FALSE;
 
@@ -451,7 +520,11 @@ Bool amdgpu_glamor_init(ScreenPtr screen)
 	}
 #endif /* RENDER */
 
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+	if (!info->glamor.init(screen, GLAMOR_USE_EGL_SCREEN | GLAMOR_USE_SCREEN |
+#else
 	if (!glamor_init(screen, GLAMOR_USE_EGL_SCREEN | GLAMOR_USE_SCREEN |
+#endif
 			 GLAMOR_USE_PICTURE_SCREEN | GLAMOR_INVERTED_Y_AXIS |
 			 GLAMOR_NO_DRI3)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
@@ -459,7 +532,11 @@ Bool amdgpu_glamor_init(ScreenPtr screen)
 		return FALSE;
 	}
 
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+	if (!info->glamor.egl_init_textured_pixmap(screen)) {
+#else
 	if (!glamor_egl_init_textured_pixmap(screen)) {
+#endif
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
 			   "Failed to initialize textured pixmap of screen for glamor.\n");
 		return FALSE;
@@ -497,7 +574,11 @@ void amdgpu_glamor_flush(ScrnInfoPtr pScrn)
 	AMDGPUInfoPtr info = AMDGPUPTR(pScrn);
 
 	if (info->use_glamor) {
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+		info->glamor.block_handler(pScrn->pScreen);
+#else
 		glamor_block_handler(pScrn->pScreen);
+#endif
 	}
 
 	info->gpu_flushed++;
@@ -509,7 +590,11 @@ void amdgpu_glamor_finish(ScrnInfoPtr pScrn)
 
 	if (info->use_glamor) {
 #if HAVE_GLAMOR_FINISH
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+		info->glamor.finish(pScrn->pScreen);
+#else
 		glamor_finish(pScrn->pScreen);
+#endif
 		info->gpu_flushed++;
 #else
 		amdgpu_glamor_flush(pScrn);
@@ -534,7 +619,12 @@ amdgpu_glamor_fini(ScreenPtr screen)
 
 XF86VideoAdaptorPtr amdgpu_glamor_xv_init(ScreenPtr pScreen, int num_adapt)
 {
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+	AMDGPUInfoPtr info = AMDGPUPTR(xf86ScreenToScrn(pScreen));
+	return info->glamor.xv_init(pScreen, num_adapt);
+#else
 	return glamor_xv_init(pScreen, num_adapt);
+#endif
 }
 
 #endif /* USE_GLAMOR */

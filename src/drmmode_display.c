@@ -400,7 +400,12 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode,
 				    fbcon->pitch, NULL);
 	pixmap->devPrivate.ptr = NULL;
 
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+	AMDGPUInfoPtr info = AMDGPUPTR(pScrn);
+	if (!info->glamor.egl_create_textured_pixmap(pixmap, fbcon->handle,
+#else
 	if (!glamor_egl_create_textured_pixmap(pixmap, fbcon->handle,
+#endif
 					       pixmap->devKind)) {
 		pScreen->DestroyPixmap(pixmap);
 		pixmap = NULL;

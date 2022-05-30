@@ -209,7 +209,11 @@ Bool amdgpu_pixmap_get_handle(PixmapPtr pixmap, uint32_t *handle)
 		CARD32 size;
 		int fd, r;
 
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+		fd = info->glamor.fd_from_pixmap(screen, pixmap, &stride, &size);
+#else
 		fd = glamor_fd_from_pixmap(screen, pixmap, &stride, &size);
+#endif
 		if (fd < 0)
 			return FALSE;
 

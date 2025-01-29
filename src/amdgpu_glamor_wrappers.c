@@ -618,7 +618,11 @@ amdgpu_glamor_validate_gc(GCPtr pGC, unsigned long changes, DrawablePtr pDrawabl
 	ScrnInfoPtr scrn = xf86ScreenToScrn(pGC->pScreen);
 	AMDGPUInfoPtr info = AMDGPUPTR(scrn);
 
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+	info->glamor.validate_gc(pGC, changes, pDrawable);
+#else
 	glamor_validate_gc(pGC, changes, pDrawable);
+#endif
 	info->glamor.SavedCopyArea = pGC->ops->CopyArea;
 	info->glamor.SavedPolyFillRect = pGC->ops->PolyFillRect;
 

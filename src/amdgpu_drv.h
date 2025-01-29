@@ -77,6 +77,9 @@
 #include "amdgpu_dri2.h"
 #include "drmmode_display.h"
 #include "amdgpu_bo_helper.h"
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+#include "shadow.h"
+#endif
 
 /* Render support */
 #ifdef RENDER
@@ -294,6 +297,13 @@ typedef struct {
 
 	Bool shadow_fb;
 	void *fb_shadow;
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+	struct {
+		Bool (*Setup)(ScreenPtr);
+		Bool (*Add)(ScreenPtr, PixmapPtr, ShadowUpdateProc, ShadowWindowProc, int, void *);
+		void (*UpdatePacked)(ScreenPtr, shadowBufPtr);
+	} shadow;
+#endif
 	struct amdgpu_buffer *front_buffer;
 
 	uint64_t vram_size;
@@ -324,6 +334,33 @@ typedef struct {
 		RegionPtr (*SavedCopyArea)(DrawablePtr, DrawablePtr, GCPtr,
 					   int, int, int, int, int, int);
 		void (*SavedPolyFillRect)(DrawablePtr, GCPtr, int, xRectangle*);
+
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+		Bool (*init)(ScreenPtr, unsigned int);
+#ifdef HAVE_GLAMOR_GLYPHS_INIT
+		Bool (*glyphs_init)(ScreenPtr);
+#endif
+		XF86VideoAdaptorPtr (*xv_init)(ScreenPtr, int);
+		Bool (*egl_init)(ScrnInfoPtr, int);
+		Bool (*egl_init_textured_pixmap)(ScreenPtr);
+		Bool (*egl_create_textured_pixmap)(PixmapPtr, int, int);
+		Bool (*egl_create_textured_pixmap_from_gbm_bo)(PixmapPtr, struct gbm_bo*
+#if XORG_VERSION_CURRENT > XORG_VERSION_NUMERIC(1,19,99,903,0)
+								     , int
+#endif
+								     );
+		void (*egl_exchange_buffers)(PixmapPtr, PixmapPtr);
+#ifdef HAVE_GLAMOR_EGL_DESTROY_TEXTURED_PIXMAP
+		void (*egl_destroy_textured_pixmap)(PixmapPtr);
+#endif
+		PixmapPtr (*create_pixmap)(ScreenPtr, int, int, int, unsigned int);
+		PixmapPtr (*pixmap_from_fd)(ScreenPtr, int, CARD16, CARD16, CARD16, CARD8, CARD8);
+		int (*fd_from_pixmap)(ScreenPtr, PixmapPtr, CARD16 *, CARD32 *);
+		void (*validate_gc)(GCPtr, unsigned long, DrawablePtr);
+		void (*block_handler)(ScreenPtr);
+		void (*finish)(ScreenPtr);
+#endif
+
 		CloseScreenProcPtr SavedCloseScreen;
 		GetImageProcPtr SavedGetImage;
 		GetSpansProcPtr SavedGetSpans;

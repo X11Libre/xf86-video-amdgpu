@@ -315,7 +315,12 @@ static void *amdgpuShadowWindow(ScreenPtr screen, CARD32 row, CARD32 offset,
 static void
 amdgpuUpdatePacked(ScreenPtr pScreen, shadowBufPtr pBuf)
 {
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+	AMDGPUInfoPtr info = AMDGPUPTR(xf86ScreenToScrn(pScreen));
+	info->shadow.UpdatePacked(pScreen, pBuf);
+#else
 	shadowUpdatePacked(pScreen, pBuf);
+#endif
 }
 
 static Bool
@@ -408,7 +413,11 @@ static Bool AMDGPUCreateScreenResources_KMS(ScreenPtr pScreen)
 	if (info->shadow_fb) {
 		pixmap = pScreen->GetScreenPixmap(pScreen);
 
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+		if (!info->shadow.Add(pScreen, pixmap, amdgpuUpdatePacked,
+#else
 		if (!shadowAdd(pScreen, pixmap, amdgpuUpdatePacked,
+#endif
 			       amdgpuShadowWindow, 0, NULL))
 			return FALSE;
 	}
@@ -1360,6 +1369,14 @@ static Bool AMDGPUPreInitWeight(ScrnInfoPtr pScrn)
 	return TRUE;
 }
 
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+static void AMDGPUBindShadowAPI(void *shadow_module, AMDGPUInfoPtr info) {
+	info->shadow.Setup = LoaderSymbolFromModule(shadow_module, "shadowSetup");
+	info->shadow.Add = LoaderSymbolFromModule(shadow_module, "shadowAdd");
+	info->shadow.UpdatePacked = LoaderSymbolFromModule(shadow_module, "shadowUpdatePacked");
+}
+#endif
+
 static Bool AMDGPUPreInitAccel_KMS(ScrnInfoPtr pScrn)
 {
 	AMDGPUInfoPtr info = AMDGPUPTR(pScrn);
@@ -1401,8 +1418,13 @@ static Bool AMDGPUPreInitAccel_KMS(ScrnInfoPtr pScrn)
 			   "GPU acceleration disabled, using ShadowFB\n");
 	}
 
-	if (!xf86LoadSubModule(pScrn, "shadow"))
+	void *shadow_module = xf86LoadSubModule(pScrn, "shadow");
+	if (!shadow_module)
 		return FALSE;
+
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+	AMDGPUBindShadowAPI(shadow_module, info);
+#endif
 
 	info->dri2.available = FALSE;
 	info->shadow_fb = TRUE;
@@ -2132,7 +2154,11 @@ Bool AMDGPUScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
 	}
 
 	if (info->shadow_fb == TRUE) {
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+		if (!info->shadow.Setup(pScreen)) {
+#else
 		if (!shadowSetup(pScreen)) {
+#endif
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				   "Shadowfb initialization failed\n");
 			return FALSE;

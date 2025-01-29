@@ -160,9 +160,14 @@ static PixmapPtr amdgpu_dri3_pixmap_from_fd(ScreenPtr screen,
 	PixmapPtr pixmap;
 
 #ifdef USE_GLAMOR
+	AMDGPUInfoPtr info = AMDGPUPTR(xf86ScreenToScrn(screen));
 	/* Avoid generating a GEM flink name if possible */
-	if (AMDGPUPTR(xf86ScreenToScrn(screen))->use_glamor) {
+	if (info->use_glamor) {
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+		pixmap = info->glamor.pixmap_from_fd(screen, fd, width, height,
+#else
 		pixmap = glamor_pixmap_from_fd(screen, fd, width, height,
+#endif
 					       stride, depth, bpp);
 		if (pixmap) {
 			struct amdgpu_pixmap *priv = calloc(1, sizeof(*priv));
@@ -221,7 +226,11 @@ static int amdgpu_dri3_fd_from_pixmap(ScreenPtr screen,
 	AMDGPUInfoPtr info = AMDGPUPTR(scrn);
 
 	if (info->use_glamor) {
+#if XORG_VERSION_CURRENT >= XORG_VERSION_NUMERIC(1,21,0,99,1)
+		int ret = info->glamor.fd_from_pixmap(screen, pixmap, stride, size);
+#else
 		int ret = glamor_fd_from_pixmap(screen, pixmap, stride, size);
+#endif
 
 		/* Any pending drawing operations need to be flushed to the
 		 * kernel driver before the client starts using the pixmap

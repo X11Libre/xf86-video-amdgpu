@@ -1333,7 +1333,7 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 		drmmode_crtc_update_tear_free(crtc);
 		if (drmmode_crtc->tear_free)
-			scanout_id = drmmode_crtc->scanout_id;
+			scanout_id = drmmode_crtc->scanout_id ^ 1;
 		else
 			drmmode_crtc->scanout_id = 0;
 
@@ -1376,6 +1376,9 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 
 		if (!drmmode_set_mode(crtc, fb, mode, x, y))
 			goto done;
+
+		if (drmmode_crtc->tear_free)
+                        drmmode_crtc->scanout_id = scanout_id;
 
 		ret = TRUE;
 

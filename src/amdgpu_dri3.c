@@ -265,6 +265,92 @@ static dri3_screen_info_rec amdgpu_dri3_screen_info = {
 	.fd_from_pixmap = amdgpu_dri3_fd_from_pixmap
 };
 
+
+#ifdef USE_GLAMOR
+static PixmapPtr amdgpu_dri3_pixmap_from_fds(ScreenPtr screen,
+                                             CARD8 num_fds,
+                                             const int *fds,
+                                             CARD16 width,
+                                             CARD16 height,
+                                             const CARD32 *strides,
+                                             const CARD32 *offsets,
+                                             CARD8 depth,
+                                             CARD8 bpp,
+                                             uint64_t modifier)
+{
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	AMDGPUInfoPtr info = AMDGPUPTR(scrn);
+
+	if (info->use_glamor) {
+		return glamor_pixmap_from_fds(screen, num_fds, fds,
+					      width, height, strides,
+					      offsets, depth, bpp, modifier);
+	}
+	return NULL;
+}
+
+static int amdgpu_dri3_fds_from_pixmap(ScreenPtr screen,
+                                       PixmapPtr pixmap,
+                                       int *fds,
+                                       uint32_t *strides, uint32_t *offsets,
+                                       uint64_t *modifier)
+{
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	AMDGPUInfoPtr info = AMDGPUPTR(scrn);
+
+	if (info->use_glamor) {
+		int ret = glamor_fds_from_pixmap(screen, pixmap, fds, strides, offsets, modifier);
+		if (ret >= 0)
+			amdgpu_glamor_flush(scrn);
+		return ret;
+	}
+	return -1;
+}
+
+static Bool amdgpu_dri3_get_formats(ScreenPtr screen,
+                                    CARD32 *num_formats,
+                                    CARD32 **formats)
+{
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	AMDGPUInfoPtr info = AMDGPUPTR(scrn);
+
+	if (info->use_glamor) {
+		return glamor_get_formats(screen, num_formats, formats);
+	}
+	return FALSE;
+}
+
+static Bool amdgpu_dri3_get_modifiers(ScreenPtr screen,
+                                      uint32_t format,
+                                      uint32_t *num_modifiers,
+                                      uint64_t **modifiers)
+{
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	AMDGPUInfoPtr info = AMDGPUPTR(scrn);
+
+	if (info->use_glamor) {
+		return glamor_get_modifiers(screen, format, num_modifiers, modifiers);
+	}
+	return FALSE;
+}
+
+static Bool amdgpu_dri3_get_drawable_modifiers(DrawablePtr draw,
+                                               uint32_t format,
+                                               uint32_t *num_modifiers,
+                                               uint64_t **modifiers)
+{
+	ScrnInfoPtr scrn = xf86ScreenToScrn(draw->pScreen);
+	AMDGPUInfoPtr info = AMDGPUPTR(scrn);
+
+	if (info->use_glamor) {
+		return glamor_get_drawable_modifiers(draw, format, num_modifiers, modifiers);
+	}
+	return FALSE;
+}
+
+#endif
+
+
 Bool
 amdgpu_dri3_screen_init(ScreenPtr screen)
 {
@@ -273,6 +359,14 @@ amdgpu_dri3_screen_init(ScreenPtr screen)
 
 	pAMDGPUEnt->render_node = drmGetRenderDeviceNameFromFd(pAMDGPUEnt->fd);
 
+#ifdef USE_GLAMOR
+	amdgpu_dri3_screen_info.pixmap_from_fds = amdgpu_dri3_pixmap_from_fds;
+	amdgpu_dri3_screen_info.fds_from_pixmap = amdgpu_dri3_fds_from_pixmap;
+	amdgpu_dri3_screen_info.get_formats = amdgpu_dri3_get_formats;
+	amdgpu_dri3_screen_info.get_modifiers = amdgpu_dri3_get_modifiers;
+	amdgpu_dri3_screen_info.get_drawable_modifiers = amdgpu_dri3_get_drawable_modifiers;
+	amdgpu_dri3_screen_info.version = 2;
+#endif
 	if (!dri3_screen_init(screen, &amdgpu_dri3_screen_info)) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
 			   "dri3_screen_init failed\n");

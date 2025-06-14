@@ -402,7 +402,7 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode,
 
 	if (!glamor_egl_create_textured_pixmap(pixmap, fbcon->handle,
 					       pixmap->devKind)) {
-		dixDestroyPixmap(pixmap, 0);
+		pScreen->DestroyPixmap(pixmap);
 		pixmap = NULL;
 	}
 
@@ -460,7 +460,7 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 	FreeScratchGC(gc);
 
 	pScreen->canDoBGNoneRoot = TRUE;
-	dixDestroyPixmap(src, 0);
+	pScreen->DestroyPixmap(src);
 #endif
 
 	return;

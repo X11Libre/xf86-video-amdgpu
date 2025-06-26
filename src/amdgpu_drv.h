@@ -40,6 +40,7 @@
 #include <stdlib.h>		/* For abs() */
 #include <unistd.h>		/* For usleep() */
 #include <sys/time.h>		/* For gettimeofday() */
+#include <xorg-server.h>
 
 #include "config.h"
 

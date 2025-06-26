@@ -27,8 +27,8 @@ stages:
   variables:
     FDO_DISTRIBUTION_VERSION: bookworm-slim
     FDO_DISTRIBUTION_EXEC: 'bash .gitlab-ci/debian-install.sh'
-    FDO_DISTRIBUTION_PACKAGES: 'ca-certificates'
-    FDO_DISTRIBUTION_TAG: "2024-07-12-ci-deb-repo"
+    FDO_DISTRIBUTION_PACKAGES: 'ca-certificates meson'
+    FDO_DISTRIBUTION_TAG: "2025-06-25"
     PKG_REPO_REV: "bca9635d"
 
 container-build:
@@ -44,10 +44,8 @@ container-build:
     - .fdo.distribution-image@debian
   stage: build
   script:
-  - ./autogen.sh
-  - make -j$(nproc) check V=1
-  - make install V=1
-  - make -j$(nproc) distcheck
+  - meson build
+  - ninja -C build install
   variables:
     CFLAGS: "-pipe -g -O2 -Werror"
     ACLOCAL_PATH: /usr/local/xserver-$XSERVER_VERSION/share/aclocal

@@ -30,6 +30,7 @@
 
 #include <errno.h>
 #include <sys/ioctl.h>
+#include <xorg-server.h>
 /* Driver data structures */
 #include "amdgpu_drv.h"
 #include "amdgpu_bo_helper.h"

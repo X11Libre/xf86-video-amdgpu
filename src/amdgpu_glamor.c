@@ -29,7 +29,7 @@
 #endif
 
 #ifdef USE_GLAMOR
-
+#include <xorg-server.h>
 #include <xf86.h>
 
 #include "amdgpu_bo_helper.h"

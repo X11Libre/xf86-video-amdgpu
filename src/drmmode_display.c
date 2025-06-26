@@ -32,6 +32,7 @@
 #include <errno.h>
 #include <sys/ioctl.h>
 #include <time.h>
+#include <xorg-server.h>
 #include "cursorstr.h"
 #include "damagestr.h"
 #include "inputstr.h"

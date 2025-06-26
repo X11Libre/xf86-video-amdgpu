@@ -23,6 +23,7 @@
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
+#include <xorg-server.h>
 #include <sys/mman.h>
 #include <gbm.h>
 #include "amdgpu_drv.h"

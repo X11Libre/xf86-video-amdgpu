@@ -57,11 +57,12 @@ fi
 AH_TOP([#include "xorg-server.h"])
 
 # Define a configure option for an alternate module directory
+PKG_PROG_PKG_CONFIG([0.25])
 AC_ARG_WITH(xorg-module-dir,
             AS_HELP_STRING([--with-xorg-module-dir=DIR],
-                           [Default xorg module directory [[default=$libdir/xorg/modules]]]),
+                           [Default xorg module directory]),
             [moduledir="$withval"],
-            [moduledir="$libdir/xorg/modules"])
+            [moduledir=`$PKG_CONFIG --variable=moduledir xorg-server`])
 
 # Store the list of server defined optional extensions in REQUIRED_MODULES
 XORG_DRIVER_CHECK_EXT(RANDR, randrproto)

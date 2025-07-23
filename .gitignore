@@ -11,6 +11,7 @@ install-sh
 missing
 mkinstalldirs
 *.pc
+.vscode
 py-compile
 symlink-tree
 texinfo.tex

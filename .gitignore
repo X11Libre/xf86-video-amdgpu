@@ -33,6 +33,7 @@ mdate-sh
 missing
 mkinstalldirs
 *.pc
+.vscode
 py-compile
 stamp-h?
 symlink-tree

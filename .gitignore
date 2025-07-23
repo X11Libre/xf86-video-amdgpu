@@ -4,37 +4,14 @@
 #
 #	Do not edit the following section
 # 	GNU Build System (Autotools)
-aclocal.m4
-autom4te.cache/
-autoscan.log
 ChangeLog
-compile
-config.guess
-config.h
-config.h.in
-config.log
-config-ml.in
-config.py
-config.status
-config.status.lineno
-config.sub
-configure
-configure.scan
 depcomp
-.deps/
 INSTALL
 install-sh
-.libs/
-libtool
-ltmain.sh
-Makefile
-Makefile.in
-mdate-sh
 missing
 mkinstalldirs
 *.pc
 py-compile
-stamp-h?
 symlink-tree
 texinfo.tex
 ylwrap

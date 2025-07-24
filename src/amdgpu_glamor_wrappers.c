@@ -32,6 +32,8 @@
 #include <config.h>
 #endif
 
+#include <fbpict.h>
+
 #ifdef USE_GLAMOR
 
 #include "amdgpu_drv.h"

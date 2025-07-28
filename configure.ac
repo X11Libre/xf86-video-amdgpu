@@ -165,16 +165,6 @@ AC_CHECK_DECL(RegionDuplicate,
 	      [#include <xorg-server.h>
 	       #include <regionstr.h>])
 
-AC_CHECK_DECL(fbGlyphs,
-	      [AC_DEFINE(HAVE_FBGLYPHS, 1, [Have fbGlyphs API])], [],
-	      [#include <X11/Xmd.h>
-	       #include <X11/Xfuncproto.h>
-	       #include <X11/extensions/renderproto.h>
-	       #include <xorg-server.h>
-	       #include <picture.h>
-	       #include <glyphstr.h>
-	       #include <fbpict.h>])
-
 AC_CHECK_DECL(xf86CursorResetCursor,
 	      [AC_DEFINE(HAVE_XF86_CURSOR_RESET_CURSOR, 1,
 	      [Have xf86CursorResetCursor API])], [],

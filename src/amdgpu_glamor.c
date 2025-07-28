@@ -28,6 +28,8 @@
 #include "config.h"
 #endif
 
+#include <xorg-server.h>
+
 #ifdef USE_GLAMOR
 
 #include <xf86.h>

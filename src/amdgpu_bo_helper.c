@@ -25,6 +25,9 @@
 #endif
 #include <sys/mman.h>
 #include <gbm.h>
+
+#include <xorg-server.h>
+
 #include "amdgpu_drv.h"
 #include "amdgpu_bo_helper.h"
 #include "amdgpu_glamor.h"

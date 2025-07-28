@@ -25,6 +25,8 @@
 #include "config.h"
 #endif
 
+#include <xorg-server.h>
+
 #include "amdgpu_drv.h"
 
 #ifdef HAVE_PRESENT_H

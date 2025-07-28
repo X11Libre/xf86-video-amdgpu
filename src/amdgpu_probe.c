@@ -30,6 +30,8 @@
 #include "config.h"
 #endif
 
+#include <xorg-server.h>
+
 #include <errno.h>
 #include <string.h>
 #include <stdlib.h>

@@ -29,6 +29,8 @@
 #include "config.h"
 #endif
 
+#include <xorg-server.h>
+
 #include "amdgpu_drv.h"
 #include "amdgpu_dri2.h"
 #include "amdgpu_glamor.h"

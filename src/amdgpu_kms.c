@@ -28,6 +28,8 @@
 #include "config.h"
 #endif
 
+#include <xorg-server.h>
+
 #include <errno.h>
 #include <sys/ioctl.h>
 

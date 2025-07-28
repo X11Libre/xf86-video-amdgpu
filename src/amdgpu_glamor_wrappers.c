@@ -32,6 +32,8 @@
 #include <config.h>
 #endif
 
+#include <xorg-server.h>
+
 #include <fb.h>
 #include <fbpict.h>
 

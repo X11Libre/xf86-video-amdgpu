@@ -24,6 +24,8 @@
 #include "config.h"
 #endif
 
+#include <xorg-server.h>
+
 #include "amdgpu_probe.h"
 #include "amdgpu_version.h"
 

@@ -30,6 +30,9 @@
 
 #include <errno.h>
 #include <sys/ioctl.h>
+
+#include "fb.h"
+
 /* Driver data structures */
 #include "amdgpu_drv.h"
 #include "amdgpu_bo_helper.h"

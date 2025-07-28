@@ -32,6 +32,7 @@
 #include <config.h>
 #endif
 
+#include <fb.h>
 #include <fbpict.h>
 
 #ifdef USE_GLAMOR

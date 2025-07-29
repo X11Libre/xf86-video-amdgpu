@@ -64,11 +64,6 @@ Bool amdgpu_glamor_create_screen_resources(ScreenPtr screen)
 	if (!info->use_glamor)
 		return TRUE;
 
-#ifdef HAVE_GLAMOR_GLYPHS_INIT
-	if (!glamor_glyphs_init(screen))
-		return FALSE;
-#endif
-
 	return amdgpu_glamor_create_textured_pixmap(screen_pixmap,
 						    info->front_buffer);
 }

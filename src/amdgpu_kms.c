@@ -48,9 +48,7 @@
 #include "shadow.h"
 #include <xf86Priv.h>
 
-#if HAVE_PRESENT_H
 #include <present.h>
-#endif
 
 #include <X11/extensions/dpmsconst.h>
 #include <X11/extensions/damageproto.h>

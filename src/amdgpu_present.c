@@ -29,8 +29,6 @@
 
 #include "amdgpu_drv.h"
 
-#ifdef HAVE_PRESENT_H
-
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
@@ -504,17 +502,3 @@ amdgpu_present_screen_init(ScreenPtr screen)
 
 	return TRUE;
 }
-
-#else /* !HAVE_PRESENT_H */
-
-Bool
-amdgpu_present_screen_init(ScreenPtr screen)
-{
-	xf86DrvMsg(xf86ScreenToScrn(screen)->scrnIndex, X_INFO,
-		   "Present extension disabled because present.h not available at "
-		   "build time\n");
-
-	return FALSE;
-}
-
-#endif

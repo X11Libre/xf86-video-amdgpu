@@ -178,12 +178,6 @@ AC_CHECK_DECL(GBM_BO_USE_FRONT_RENDERING,
 	      [#include <stdlib.h>
 	       #include <gbm.h>])
 
-AC_CHECK_HEADERS([present.h], [], [],
-		 [#include <X11/Xmd.h>
-		 #include <X11/Xproto.h>
-		 #include "xorg-server.h"
-		 #include <X11/X.h>])
-
 AC_CHECK_HEADERS([dri3.h], [], [],
 		 [#include <X11/Xmd.h>
 		 #include <xorg-server.h>])

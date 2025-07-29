@@ -89,25 +89,6 @@
 
 struct _SyncFence;
 
-#ifndef HAVE_REGIONDUPLICATE
-
-static inline RegionPtr
-RegionDuplicate(RegionPtr pOld)
-{
-	RegionPtr pNew;
-
-	pNew = RegionCreate(&pOld->extents, 0);
-	if (!pNew)
-		return NULL;
-	if (!RegionCopy(pNew, pOld)) {
-		RegionDestroy(pNew);
-		return NULL;
-	}
-	return pNew;
-}
-
-#endif
-
 #ifndef MAX
 #define MAX(a,b) ((a)>(b)?(a):(b))
 #endif

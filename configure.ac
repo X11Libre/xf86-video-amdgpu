@@ -159,12 +159,6 @@ else
 fi
 AM_CONDITIONAL(GLAMOR, test x$GLAMOR != xno)
 
-AC_CHECK_DECL(RegionDuplicate,
-	      [AC_DEFINE(HAVE_REGIONDUPLICATE, 1,
-	      [Have RegionDuplicate API])], [],
-	      [#include <xorg-server.h>
-	       #include <regionstr.h>])
-
 AC_CHECK_DECL(xf86CursorResetCursor,
 	      [AC_DEFINE(HAVE_XF86_CURSOR_RESET_CURSOR, 1,
 	      [Have xf86CursorResetCursor API])], [],

@@ -3000,7 +3000,6 @@ fail:
 static void
 drmmode_validate_leases(ScrnInfoPtr scrn)
 {
-#ifdef XF86_LEASE_VERSION
 	ScreenPtr screen = scrn->pScreen;
 	rrScrPrivPtr scr_priv = rrGetScrPriv(screen);
 	AMDGPUEntPtr pAMDGPUEnt = AMDGPUEntPriv(scrn);
@@ -3033,10 +3032,7 @@ drmmode_validate_leases(ScrnInfoPtr scrn)
 	}
 
 	free(lessees);
-#endif
 }
-
-#ifdef XF86_LEASE_VERSION
 
 static int
 drmmode_create_lease(RRLeasePtr lease, int *fd)
@@ -3122,14 +3118,10 @@ drmmode_terminate_lease(RRLeasePtr lease)
 	}
 }
 
-#endif // XF86_LEASE_VERSION
-
 static const xf86CrtcConfigFuncsRec drmmode_xf86crtc_config_funcs = {
 	.resize = drmmode_xf86crtc_resize,
-#ifdef XF86_LEASE_VERSION
 	.create_lease = drmmode_create_lease,
 	.terminate_lease = drmmode_terminate_lease
-#endif
 };
 
 static void

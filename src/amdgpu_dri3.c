@@ -25,8 +25,6 @@
 
 #include "amdgpu_drv.h"
 
-#ifdef HAVE_DRI3_H
-
 #include "amdgpu_glamor.h"
 #include "amdgpu_pixmap.h"
 #include "dri3.h"
@@ -241,17 +239,3 @@ amdgpu_dri3_screen_init(ScreenPtr screen)
 
 	return TRUE;
 }
-
-#else /* !HAVE_DRI3_H */
-
-Bool
-amdgpu_dri3_screen_init(ScreenPtr screen)
-{
-	xf86DrvMsg(xf86ScreenToScrn(screen)->scrnIndex, X_INFO,
-		   "Can't initialize DRI3 because dri3.h not available at "
-		   "build time\n");
-
-	return FALSE;
-}
-
-#endif

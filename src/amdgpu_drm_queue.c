@@ -25,16 +25,10 @@
  *    Dave Airlie <airlied@redhat.com>
  *
  */
-
-#ifdef HAVE_CONFIG_H
 #include "config.h"
-#endif
-
 #include <xorg-server.h>
 
 #include <errno.h>
-
-#include <xorg-server.h>
 #include <X11/Xdefs.h>
 #include <list.h>
 

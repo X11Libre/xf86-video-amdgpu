@@ -119,18 +119,6 @@ AC_ARG_ENABLE(glamor,
 
 if test "x$GLAMOR" != "xno"; then
 	AC_CHECK_HEADERS([glamor.h], [GLAMOR_H="yes"], [GLAMOR_H="no"], [#include "xorg-server.h"])
-
-	if test "x$GLAMOR_H" = xyes; then
-		AC_CHECK_DECL(GLAMOR_NO_DRI3,
-			      [GLAMOR_XSERVER="yes"], [GLAMOR_XSERVER="no"],
-			      [#include "xorg-server.h"
-			       #include "glamor.h"])
-	fi
-
-	if test "x$GLAMOR_XSERVER" != xyes; then
-		PKG_CHECK_MODULES(LIBGLAMOR, [glamor >= 0.6.0])
-		PKG_CHECK_MODULES(LIBGLAMOR_EGL, [glamor-egl])
-	fi
 	AC_DEFINE(USE_GLAMOR, 1, [Enable glamor acceleration])
 else
 	AC_MSG_RESULT([$GLAMOR])

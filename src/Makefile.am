@@ -49,8 +49,6 @@ amdgpu_drv_la_SOURCES = \
 	amdgpu_misc.c amdgpu_probe.c \
 	$(AMDGPU_KMS_SRCS)
 
-AM_CFLAGS += @LIBGLAMOR_CFLAGS@
-amdgpu_drv_la_LIBADD += @LIBGLAMOR_LIBS@
 amdgpu_drv_la_SOURCES += \
 	amdgpu_glamor.c \
 	amdgpu_glamor_wrappers.c \

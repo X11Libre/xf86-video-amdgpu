@@ -1,5 +1,7 @@
 #!/bin/bash
 
+echo "installing ubuntu packages"
+
 set -e
 
 # Packages which are needed by this script, but not for the xserver build
@@ -92,3 +94,7 @@ apt-get install -y \
 	xutils-dev \
 	libxaw7-dev \
 	python3-mako
+
+echo "installing libgbm-dev"
+apt-get install -y libgbm-dev
+

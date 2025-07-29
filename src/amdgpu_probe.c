@@ -131,21 +131,17 @@ static int amdgpu_kernel_open_fd(ScrnInfoPtr pScrn,
 		    dev->domain, dev->bus, dev->dev, dev->func);
 
 	if (platform_dev) {
-#ifdef ODEV_ATTRIB_FD
 		fd = xf86_get_platform_device_int_attrib(platform_dev,
 							 ODEV_ATTRIB_FD, -1);
 		if (fd != -1)
 			return fd;
-#endif
 
-#ifdef ODEV_ATTRIB_PATH
 		path = xf86_get_platform_device_attrib(platform_dev,
 						       ODEV_ATTRIB_PATH);
 
 		fd = open(path, O_RDWR | O_CLOEXEC);
 		if (fd != -1)
 			return fd;
-#endif
 	}
 
 	if (!amdgpu_kernel_mode_enabled(pScrn))

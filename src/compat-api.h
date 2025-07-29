@@ -26,25 +26,9 @@
 #ifndef COMPAT_API_H
 #define COMPAT_API_H
 
-#if ABI_VIDEODRV_VERSION >= SET_ABI_VERSION(22,0)
 #define HAVE_NOTIFY_FD	1
-#endif
 
-#if ABI_VIDEODRV_VERSION >= SET_ABI_VERSION(23, 0)
 #define BLOCKHANDLER_ARGS_DECL ScreenPtr pScreen, pointer pTimeout
 #define BLOCKHANDLER_ARGS pScreen, pTimeout
-#else
-#define BLOCKHANDLER_ARGS_DECL ScreenPtr pScreen, pointer pTimeout, pointer pReadmask
-#define BLOCKHANDLER_ARGS pScreen, pTimeout, pReadmask
-#endif
-
-#if ABI_VIDEODRV_VERSION < SET_ABI_VERSION(25, 2)
-#define current_primary current_master
-#define primary_pixmap master_pixmap
-#define secondary_dst slave_dst
-#define secondary_list slave_list
-#define secondary_head slave_head
-#define is_output_secondary is_output_slave
-#endif
 
 #endif

@@ -186,11 +186,7 @@ amdgpu_dirty_primary(PixmapDirtyUpdatePtr dirty)
 static inline DrawablePtr
 amdgpu_dirty_src_drawable(PixmapDirtyUpdatePtr dirty)
 {
-#ifdef HAS_DIRTYTRACKING_DRAWABLE_SRC
 	return dirty->src;
-#else
-	return &dirty->src->drawable;
-#endif
 }
 
 static inline Bool

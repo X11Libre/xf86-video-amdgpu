@@ -1817,14 +1817,9 @@ static Bool drmmode_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
 
 	drmmode_crtc->prime_scanout_pixmap = ppix;
 
-#ifdef HAS_DIRTYTRACKING_DRAWABLE_SRC
 	PixmapStartDirtyTracking(&ppix->drawable,
 				 drmmode_crtc->scanout[scanout_id],
 				 0, 0, 0, 0, RR_Rotate_0);
-#else
-	PixmapStartDirtyTracking(ppix, drmmode_crtc->scanout[scanout_id],
-				 0, 0, 0, 0, RR_Rotate_0);
-#endif
 	return TRUE;
 }
 

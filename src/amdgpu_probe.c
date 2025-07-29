@@ -177,7 +177,7 @@ static int amdgpu_kernel_open_fd(ScrnInfoPtr pScrn,
 
 void amdgpu_kernel_close_fd(AMDGPUEntPtr pAMDGPUEnt)
 {
-#if defined(XSERVER_PLATFORM_BUS) && defined(XF86_PDEV_SERVER_FD)
+#if defined(XSERVER_PLATFORM_BUS)
 	if (!(pAMDGPUEnt->platform_dev &&
 	      pAMDGPUEnt->platform_dev->flags & XF86_PDEV_SERVER_FD))
 #endif

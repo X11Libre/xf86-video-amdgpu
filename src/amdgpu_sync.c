@@ -23,8 +23,6 @@
 
 #include "amdgpu_drv.h"
 
-#ifdef HAVE_MISYNCSHM_H
-
 #include "misync.h"
 #include "misyncshm.h"
 #include "misyncstr.h"
@@ -133,22 +131,3 @@ amdgpu_sync_close(ScreenPtr screen)
 
 	info->CreateFence = NULL;
 }
-
-#else /* !HAVE_MISYNCSHM_H */
-
-Bool
-amdgpu_sync_init(ScreenPtr screen)
-{
-	xf86DrvMsg(xf86ScreenToScrn(screen)->scrnIndex, X_INFO,
-		   "SYNC extension fences disabled because misyncshm.h not "
-		   "available at build time\n");
-
-	return FALSE;
-}
-
-void
-amdgpu_sync_close(ScreenPtr screen)
-{
-}
-
-#endif

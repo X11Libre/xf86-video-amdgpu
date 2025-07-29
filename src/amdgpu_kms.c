@@ -2042,10 +2042,7 @@ Bool AMDGPUScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
 	}
 #endif
 
-	if (xorgGetVersion() >= XORG_VERSION_NUMERIC(1,18,3,0,0))
-		value = info->use_glamor;
-	else
-		value = FALSE;
+	value = info->use_glamor;
 	from = X_DEFAULT;
 
 	if (info->use_glamor) {

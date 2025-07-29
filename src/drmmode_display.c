@@ -551,11 +551,6 @@ drmmode_can_use_hw_cursor(xf86CrtcPtr crtc)
 	if (crtc->transformPresent)
 		return FALSE;
 
-	/* HW cursor not supported with RandR 1.4 multihead up to 1.18.99.901 */
-	if (xorgGetVersion() <= XORG_VERSION_NUMERIC(1,18,99,901,0) &&
-	    !xorg_list_is_empty(&crtc->scrn->pScreen->pixmap_dirty_list))
-		return FALSE;
-
 	return TRUE;
 }
 
@@ -1443,14 +1438,6 @@ drmmode_cursor_pixel(xf86CrtcPtr crtc, uint32_t *argb, Bool *premultiplied,
 	int i;
 
 	if (premultiplied) {
-#if XORG_VERSION_CURRENT < XORG_VERSION_NUMERIC(1, 18, 4, 0, 0)
-		if (alpha == 0 && (*argb & 0xffffff) != 0) {
-			/* Doesn't look like premultiplied alpha */
-			*premultiplied = FALSE;
-			return FALSE;
-		}
-#endif
-
 		if (!(*apply_gamma))
 			return TRUE;
 

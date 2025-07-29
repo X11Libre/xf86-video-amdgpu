@@ -125,11 +125,6 @@ else
 fi
 AM_CONDITIONAL(GLAMOR, test x$GLAMOR != xno)
 
-AC_CHECK_DECL(GBM_BO_USE_FRONT_RENDERING,
-	      [AC_DEFINE(HAVE_GBM_BO_USE_FRONT_RENDERING, 1, [Have GBM_BO_USE_FRONT_RENDERING])], [],
-	      [#include <stdlib.h>
-	       #include <gbm.h>])
-
 CPPFLAGS="$SAVE_CPPFLAGS"
 
 # Checks for headers/macros for byte swapping

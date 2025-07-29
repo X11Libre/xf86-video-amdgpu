@@ -144,12 +144,6 @@ else
 fi
 AM_CONDITIONAL(GLAMOR, test x$GLAMOR != xno)
 
-AC_CHECK_DECL(xf86CursorResetCursor,
-	      [AC_DEFINE(HAVE_XF86_CURSOR_RESET_CURSOR, 1,
-	      [Have xf86CursorResetCursor API])], [],
-	      [#include <xorg-server.h>
-	       #include <xf86Cursor.h>])
-
 AC_CHECK_DECL(GBM_BO_USE_LINEAR,
 	      [AC_DEFINE(HAVE_GBM_BO_USE_LINEAR, 1, [Have GBM_BO_USE_LINEAR])], [],
 	      [#include <stdlib.h>

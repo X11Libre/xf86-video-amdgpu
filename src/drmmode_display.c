@@ -1381,11 +1381,6 @@ drmmode_set_mode_major(xf86CrtcPtr crtc, DisplayModePtr mode,
 		break;
 	}
 
-#ifndef HAVE_XF86_CURSOR_RESET_CURSOR
-	if (!info->hwcursor_disabled)
-		xf86_reload_cursors(pScreen);
-#endif
-
 done:
 	if (!ret) {
 		crtc->x = saved_x;
@@ -1674,11 +1669,7 @@ drmmode_crtc_gamma_set(xf86CrtcPtr crtc, uint16_t * red, uint16_t * green,
 	if (info->hwcursor_disabled & (1 << i))
 		return;
 
-#ifdef HAVE_XF86_CURSOR_RESET_CURSOR
 	xf86CursorResetCursor(scrn->pScreen);
-#else
-	xf86_reload_cursors(scrn->pScreen);
-#endif
 }
 
 static Bool drmmode_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)

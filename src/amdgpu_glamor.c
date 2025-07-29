@@ -36,10 +36,6 @@
 
 #include <gbm.h>
 
-#ifndef HAVE_GLAMOR_FINISH
-#include <GL/gl.h>
-#endif
-
 DevPrivateKeyRec amdgpu_pixmap_index;
 
 void amdgpu_glamor_exchange_buffers(PixmapPtr src, PixmapPtr dst)
@@ -468,13 +464,8 @@ void amdgpu_glamor_finish(ScrnInfoPtr pScrn)
 	AMDGPUInfoPtr info = AMDGPUPTR(pScrn);
 
 	if (info->use_glamor) {
-#if HAVE_GLAMOR_FINISH
 		glamor_finish(pScrn->pScreen);
 		info->gpu_flushed++;
-#else
-		amdgpu_glamor_flush(pScrn);
-		glFinish();
-#endif
 	}
 }
 

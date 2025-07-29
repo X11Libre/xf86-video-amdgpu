@@ -665,9 +665,6 @@ amdgpu_sync_shared_pixmap(PixmapDirtyUpdatePtr dirty)
 	}
 }
 
-
-#if HAS_SYNC_SHARED_PIXMAP
-
 static Bool
 primary_has_sync_shared_pixmap(ScrnInfoPtr scrn, PixmapDirtyUpdatePtr dirty)
 {
@@ -691,33 +688,6 @@ call_sync_shared_pixmap(PixmapDirtyUpdatePtr dirty)
 
 	primary_screen->SyncSharedPixmap(dirty);
 }
-
-#else /* !HAS_SYNC_SHARED_PIXMAP */
-
-static Bool
-primary_has_sync_shared_pixmap(ScrnInfoPtr scrn, PixmapDirtyUpdatePtr dirty)
-{
-	ScrnInfoPtr primary_scrn = xf86ScreenToScrn(amdgpu_dirty_primary(dirty));
-
-	return primary_scrn->driverName == scrn->driverName;
-}
-
-static Bool
-secondary_has_sync_shared_pixmap(ScrnInfoPtr scrn, PixmapDirtyUpdatePtr dirty)
-{
-	ScrnInfoPtr secondary_scrn = xf86ScreenToScrn(dirty->secondary_dst->drawable.pScreen);
-
-	return secondary_scrn->driverName == scrn->driverName;
-}
-
-static void
-call_sync_shared_pixmap(PixmapDirtyUpdatePtr dirty)
-{
-	amdgpu_sync_shared_pixmap(dirty);
-}
-
-#endif /* HAS_SYNC_SHARED_PIXMAPS */
-
 
 static xf86CrtcPtr
 amdgpu_prime_dirty_to_crtc(PixmapDirtyUpdatePtr dirty)
@@ -2155,9 +2125,7 @@ Bool AMDGPUScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
 
 	pScreen->StartPixmapTracking = PixmapStartDirtyTracking;
 	pScreen->StopPixmapTracking = PixmapStopDirtyTracking;
-#if HAS_SYNC_SHARED_PIXMAP
 	pScreen->SyncSharedPixmap = amdgpu_sync_shared_pixmap;
-#endif
 
 	if (!xf86CrtcScreenInit(pScreen))
 		return FALSE;

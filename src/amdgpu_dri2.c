@@ -343,8 +343,7 @@ static void amdgpu_dri2_unref_buffer(BufferPtr buffer)
 }
 
 static void
-amdgpu_dri2_client_state_changed(CallbackListPtr * cbl,
-				 pointer data, pointer calldata)
+amdgpu_dri2_client_state_changed(CallbackListPtr * cbl, void* data, void* calldata)
 {
 	NewClientInfoRec *clientinfo = calldata;
 	ClientPtr pClient = clientinfo->client;
@@ -850,7 +849,7 @@ static int amdgpu_dri2_get_msc(DrawablePtr draw, CARD64 * ust, CARD64 * msc)
 }
 
 static
-CARD32 amdgpu_dri2_deferred_event(OsTimerPtr timer, CARD32 now, pointer data)
+CARD32 amdgpu_dri2_deferred_event(OsTimerPtr timer, CARD32 now, void* data)
 {
 	DRI2FrameEventPtr event_info = (DRI2FrameEventPtr) data;
 	xf86CrtcPtr crtc = event_info->crtc;

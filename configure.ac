@@ -125,10 +125,6 @@ else
 fi
 AM_CONDITIONAL(GLAMOR, test x$GLAMOR != xno)
 
-AC_CHECK_HEADERS([dri3.h], [], [],
-		 [#include <X11/Xmd.h>
-		 #include <xorg-server.h>])
-
 CPPFLAGS="$SAVE_CPPFLAGS"
 
 # Checks for headers/macros for byte swapping

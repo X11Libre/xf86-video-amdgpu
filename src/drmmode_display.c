@@ -3646,6 +3646,7 @@ drmmode_find_output(ScrnInfoPtr scrn, int output_id, int *num_dvi,
 	return FALSE;
 }
 
+#ifdef HAVE_LIBUDEV
 static void
 amdgpu_mode_hotplug(ScrnInfoPtr scrn, drmmode_ptr drmmode)
 {
@@ -3761,7 +3762,6 @@ out:
 	RRGetInfo(xf86ScrnToScreen(scrn), TRUE);
 }
 
-#ifdef HAVE_LIBUDEV
 static void drmmode_handle_uevents(int fd, void *closure)
 {
 	drmmode_ptr drmmode = closure;

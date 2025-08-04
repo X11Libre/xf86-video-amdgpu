@@ -217,18 +217,11 @@ amdgpu_unwrap_property_requests(ScrnInfoPtr scrn)
 	amdgpu_property_vectors_wrapped = FALSE;
 }
 
-extern _X_EXPORT int gAMDGPUEntityIndex;
-
-static int getAMDGPUEntityIndex(void)
-{
-	return gAMDGPUEntityIndex;
-}
-
 AMDGPUEntPtr AMDGPUEntPriv(ScrnInfoPtr pScrn)
 {
 	DevUnion *pPriv;
 	AMDGPUInfoPtr info = AMDGPUPTR(pScrn);
-	pPriv = xf86GetEntityPrivate(info->pEnt->index, getAMDGPUEntityIndex());
+	pPriv = xf86GetEntityPrivate(info->pEnt->index, gAMDGPUEntityIndex);
 	return pPriv->ptr;
 }
 
@@ -269,7 +262,7 @@ static void AMDGPUFreeRec(ScrnInfoPtr pScrn)
 		DevUnion *pPriv;
 		AMDGPUEntPtr pAMDGPUEnt;
 		pPriv = xf86GetEntityPrivate(pScrn->entityList[0],
-					     getAMDGPUEntityIndex());
+					     gAMDGPUEntityIndex);
 
 		pAMDGPUEnt = pPriv->ptr;
 		pAMDGPUEnt->fd_ref--;
@@ -1507,7 +1500,7 @@ Bool AMDGPUPreInit_KMS(ScrnInfoPtr pScrn, int flags)
 		return FALSE;
 
 	pAMDGPUEnt = xf86GetEntityPrivate(pScrn->entityList[0],
-					  getAMDGPUEntityIndex())->ptr;
+					  gAMDGPUEntityIndex)->ptr;
 
 	if (!AMDGPUGetRec(pScrn))
 		return FALSE;

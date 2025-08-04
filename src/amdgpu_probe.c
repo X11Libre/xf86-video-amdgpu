@@ -55,7 +55,7 @@
 
 #include <xf86platformBus.h>
 
-_X_EXPORT int gAMDGPUEntityIndex = -1;
+int gAMDGPUEntityIndex = -1;
 
 /* Return the options for supported chipset 'n'; NULL otherwise */
 static const OptionInfoRec *AMDGPUAvailableOptions(int chipid, int busid)

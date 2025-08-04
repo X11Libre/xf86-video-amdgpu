@@ -1727,7 +1727,7 @@ static Bool AMDGPUCursorInit_KMS(ScreenPtr pScreen)
 	return TRUE;
 }
 
-void AMDGPUBlank(ScrnInfoPtr pScrn)
+static void AMDGPUBlank(ScrnInfoPtr pScrn)
 {
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	xf86OutputPtr output;
@@ -1747,7 +1747,7 @@ void AMDGPUBlank(ScrnInfoPtr pScrn)
 	}
 }
 
-void AMDGPUUnblank(ScrnInfoPtr pScrn)
+static void AMDGPUUnblank(ScrnInfoPtr pScrn)
 {
 	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	xf86OutputPtr output;

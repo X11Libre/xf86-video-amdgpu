@@ -371,7 +371,7 @@ static Bool AMDGPUCreateScreenResources_KMS(ScreenPtr pScreen)
 		return FALSE;
 	pScreen->CreateScreenResources = AMDGPUCreateScreenResources_KMS;
 
-	/* Set the RandR primary output if Xorg hasn't */
+	/* Set the RandR primary output if Xlibre hasn't */
 	if (dixPrivateKeyRegistered(rrPrivKey)) {
 		rrScrPrivPtr rrScrPriv = rrGetScrPriv(pScreen);
 

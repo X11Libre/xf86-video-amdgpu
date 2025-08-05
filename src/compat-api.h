@@ -26,8 +26,6 @@
 #ifndef COMPAT_API_H
 #define COMPAT_API_H
 
-#define HAVE_NOTIFY_FD	1
-
 #define BLOCKHANDLER_ARGS_DECL ScreenPtr pScreen, void* pTimeout
 #define BLOCKHANDLER_ARGS pScreen, pTimeout
 

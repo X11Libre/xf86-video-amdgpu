@@ -85,8 +85,6 @@
 
 #include "compat-api.h"
 
-#include "simple_list.h"
-
 struct _SyncFence;
 
 #ifndef MAX

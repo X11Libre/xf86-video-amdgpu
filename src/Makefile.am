@@ -64,6 +64,5 @@ EXTRA_DIST = \
 	amdgpu_probe.h \
 	amdgpu_version.h \
 	amdgpu_video.h \
-	simple_list.h \
 	amdgpu_dri2.h \
 	drmmode_display.h

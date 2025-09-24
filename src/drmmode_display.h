@@ -32,6 +32,8 @@
 #include "libudev.h"
 #endif
 
+#include <X11/extensions/dpmsconst.h>
+
 #include "amdgpu_drm_queue.h"
 #include "amdgpu_probe.h"
 #include "amdgpu.h"

@@ -123,8 +123,11 @@ static int amdgpu_kernel_open_fd(ScrnInfoPtr pScrn,
 	else
 		dev = pci_dev;
 
-	XNFasprintf(&pAMDGPUEnt->busid, "pci:%04x:%02x:%02x.%u",
-		    dev->domain, dev->bus, dev->dev, dev->func);
+	if (asprintf(&pAMDGPUEnt->busid, "pci:%04x:%02x:%02x.%u",
+		    dev->domain, dev->bus, dev->dev, dev->func) == -1) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "[drm] malloc failed\n");
+		return -1;
+	}
 
 	if (platform_dev) {
 		fd = xf86_get_platform_device_int_attrib(platform_dev,

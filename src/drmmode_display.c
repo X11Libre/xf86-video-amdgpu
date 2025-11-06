@@ -3283,7 +3283,11 @@ Bool drmmode_pre_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, int cpp)
 	/* workout clones */
 	drmmode_clones_init(pScrn, drmmode, mode_res);
 
-	XNFasprintf(&provider_name, "%s @ %s", pScrn->chipset, pAMDGPUEnt->busid);
+	if (asprintf(&provider_name, "%s @ %s", pScrn->chipset, pAMDGPUEnt->busid) == -1) {
+		xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "malloc failed\n");
+		return FALSE;
+	}
+
 	xf86ProviderSetup(pScrn, NULL, provider_name);
 	free(provider_name);
 

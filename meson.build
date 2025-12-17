@@ -28,9 +28,6 @@ libgl_dep = dependency('gl', required: get_option('glamor'))
 moduledir = join_paths(get_option('libdir'), get_option('moduledir'))
 configdir = join_paths(get_option('prefix'), get_option('configdir'))
 
-# Preprocessor definitions
-add_project_arguments('-DHAVE_CONFIG_H', language: 'c')
-
 cc = meson.get_compiler('c')
 have_gbm_bo_use_linear = cc.has_header_symbol('gbm.h', 'GBM_BO_USE_LINEAR')
 have_gbm_bo_use_front_rendering = cc.has_header_symbol('gbm.h', 'GBM_BO_USE_FRONT_RENDERING')

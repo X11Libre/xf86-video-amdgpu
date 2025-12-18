@@ -199,9 +199,6 @@ fi
 
 AC_SUBST([moduledir])
 
-DRIVER_NAME=amdgpu
-AC_SUBST([DRIVER_NAME])
-
 AC_CONFIG_FILES([
                 Makefile
                 src/Makefile

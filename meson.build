@@ -8,7 +8,7 @@ project(
 )
 
 # Dependencies
-xorg_dep = dependency('xorg-server', version: '>=1.18', required: true)
+xorg_dep = dependency('xorg-server', version: '>=25.0.0', required: true)
 xproto_dep = dependency('xproto', required: true)
 fontsproto_dep = dependency('fontsproto', required: true)
 xf86driproto_dep = dependency('xf86driproto', required: true)

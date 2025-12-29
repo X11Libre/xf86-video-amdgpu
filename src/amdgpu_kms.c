@@ -1774,9 +1774,11 @@ static Bool amdgpu_set_drm_master(ScrnInfoPtr pScrn)
 	AMDGPUEntPtr pAMDGPUEnt = AMDGPUEntPriv(pScrn);
 	int err;
 
+#ifdef XSERVER_PLATFORM_BUS
 	if (pAMDGPUEnt->platform_dev &&
 	    (pAMDGPUEnt->platform_dev->flags & XF86_PDEV_SERVER_FD))
 		return TRUE;
+#endif /* XSERVER_PLATFORM_BUS */
 
 	err = drmSetMaster(pAMDGPUEnt->fd);
 	if (err)
@@ -1789,9 +1791,11 @@ static void amdgpu_drop_drm_master(ScrnInfoPtr pScrn)
 {
 	AMDGPUEntPtr pAMDGPUEnt = AMDGPUEntPriv(pScrn);
 
+#ifdef XSERVER_PLATFORM_BUS
 	if (pAMDGPUEnt->platform_dev &&
 	    (pAMDGPUEnt->platform_dev->flags & XF86_PDEV_SERVER_FD))
 		return;
+#endif /* XSERVER_PLATFORM_BUS */
 
 	drmDropMaster(pAMDGPUEnt->fd);
 }

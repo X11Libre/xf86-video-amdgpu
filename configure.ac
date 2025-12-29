@@ -147,56 +147,6 @@ CPPFLAGS="$SAVE_CPPFLAGS"
 # if <byteswap.h> is found, assume it's the correct version
 AC_CHECK_HEADERS([byteswap.h])
 
-# if <sys/endian.h> is found, have to check which version
-AC_CHECK_HEADER([sys/endian.h], [HAVE_SYS_ENDIAN_H="yes"], [HAVE_SYS_ENDIAN_H="no"])
-
-if test "x$HAVE_SYS_ENDIAN_H" = "xyes" ; then
-	AC_MSG_CHECKING([for __swap16 variant of <sys/endian.h> byteswapping macros])
-	AC_LINK_IFELSE([AC_LANG_PROGRAM([
-#include <sys/types.h>
-#include <sys/endian.h>
- ], [
-int a = 1, b;
-b = __swap16(a);
- ])
-], [SYS_ENDIAN__SWAP='yes'], [SYS_ENDIAN__SWAP='no'])
-	AC_MSG_RESULT([$SYS_ENDIAN__SWAP])
-
-	AC_MSG_CHECKING([for bswap16 variant of <sys/endian.h> byteswapping macros])
-	AC_LINK_IFELSE([AC_LANG_PROGRAM([
-#include <sys/types.h>
-#include <sys/endian.h>
- ], [
-int a = 1, b;
-b = bswap16(a);
- ])
-], [SYS_ENDIAN_BSWAP='yes'], [SYS_ENDIAN_BSWAP='no'])
-	AC_MSG_RESULT([$SYS_ENDIAN_BSWAP])
-
-    	if test "$SYS_ENDIAN_BSWAP" = "yes" ; then
-		USE_SYS_ENDIAN_H=yes
-		BSWAP=bswap
-	else	
-	    	if test "$SYS_ENDIAN__SWAP" = "yes" ; then
-			USE_SYS_ENDIAN_H=yes
-			BSWAP=__swap
-		else
-			USE_SYS_ENDIAN_H=no
-		fi
-	fi
-
-	if test "$USE_SYS_ENDIAN_H" = "yes" ; then
-	    AC_DEFINE([USE_SYS_ENDIAN_H], 1, 
-		[Define to use byteswap macros from <sys/endian.h>])
-	    AC_DEFINE_UNQUOTED([bswap_16], ${BSWAP}16, 
-			[Define to 16-bit byteswap macro])
-	    AC_DEFINE_UNQUOTED([bswap_32], ${BSWAP}32, 
-			[Define to 32-bit byteswap macro])
-	    AC_DEFINE_UNQUOTED([bswap_64], ${BSWAP}64, 
-			[Define to 64-bit byteswap macro])
-	fi
-fi
-
 AC_SUBST([moduledir])
 
 AC_CONFIG_FILES([

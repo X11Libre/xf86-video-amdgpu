@@ -129,6 +129,7 @@ static int amdgpu_kernel_open_fd(ScrnInfoPtr pScrn,
 		return -1;
 	}
 
+#ifdef XSERVER_PLATFORM_BUS
 	if (platform_dev) {
 		fd = xf86_get_platform_device_int_attrib(platform_dev,
 							 ODEV_ATTRIB_FD, -1);
@@ -142,6 +143,7 @@ static int amdgpu_kernel_open_fd(ScrnInfoPtr pScrn,
 		if (fd != -1)
 			return fd;
 	}
+#endif /* XSERVER_PLATFORM_BUS */
 
 	if (!amdgpu_kernel_mode_enabled(pScrn))
 		return -1;

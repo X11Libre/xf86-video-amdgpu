@@ -396,7 +396,6 @@ Bool amdgpu_glamor_init(ScreenPtr screen)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	AMDGPUInfoPtr info = AMDGPUPTR(scrn);
-#ifdef RENDER
 	UnrealizeGlyphProcPtr SavedUnrealizeGlyph = NULL;
 	PictureScreenPtr ps = NULL;
 
@@ -410,7 +409,6 @@ Bool amdgpu_glamor_init(ScreenPtr screen)
 			info->glamor.SavedTrapezoids = ps->Trapezoids;
 		}
 	}
-#endif /* RENDER */
 
 	if (!glamor_init(screen, GLAMOR_USE_EGL_SCREEN | GLAMOR_USE_SCREEN |
 			 GLAMOR_USE_PICTURE_SCREEN | GLAMOR_INVERTED_Y_AXIS |
@@ -426,13 +424,11 @@ Bool amdgpu_glamor_init(ScreenPtr screen)
 	if (info->shadow_primary)
 		amdgpu_glamor_screen_init(screen);
 
-#if defined(RENDER)
 	/* For ShadowPrimary, we need fbUnrealizeGlyph instead of
 	 * glamor_unrealize_glyph
 	 */
 	if (ps)
 		ps->UnrealizeGlyph = SavedUnrealizeGlyph;
-#endif
 
 	info->glamor.SavedCreatePixmap = screen->CreatePixmap;
 	screen->CreatePixmap = amdgpu_glamor_create_pixmap;

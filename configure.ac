@@ -64,10 +64,7 @@ AC_ARG_WITH(xorg-module-dir,
             [moduledir=`$PKG_CONFIG --variable=moduledir xorg-server`])
 
 # Store the list of server defined optional extensions in REQUIRED_MODULES
-XORG_DRIVER_CHECK_EXT(RANDR, randrproto)
-XORG_DRIVER_CHECK_EXT(RENDER, renderproto)
 XORG_DRIVER_CHECK_EXT(XV, videoproto)
-XORG_DRIVER_CHECK_EXT(DPMSExtension, xextproto)
 
 # Checks for libraries.
 PKG_CHECK_MODULES(LIBDRM, [libdrm >= 2.4.121])
@@ -75,8 +72,7 @@ PKG_CHECK_MODULES(LIBDRM_AMDGPU, [libdrm_amdgpu >= 2.4.121])
 PKG_CHECK_MODULES(GBM, [gbm])
 
 # Obtain compiler/linker options for the driver dependencies
-PKG_CHECK_MODULES(XORG, [xorg-server >= 25.0.0 xproto fontsproto xf86driproto $REQUIRED_MODULES])
-PKG_CHECK_MODULES(XEXT, [xextproto >= 7.0.99.1])
+PKG_CHECK_MODULES(XORG, [xorg-server >= 25.0.0 xproto fontsproto xf86driproto randrproto renderproto xextproto >= 7.0.99.1 $REQUIRED_MODULES])
 
 # Section "OutputClass" is only supported as of xserver 1.16
 PKG_CHECK_EXISTS([xorg-server >= 1.16],

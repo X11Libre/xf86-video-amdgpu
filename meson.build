@@ -34,7 +34,6 @@ have_gbm_bo_use_front_rendering = cc.has_header_symbol('gbm.h', 'GBM_BO_USE_FRON
 xorg_include = xorg_dep.get_variable(pkgconfig: 'sdkdir')
 have_fbGlyphs = cc.has_header('fbpict.h', args: ['-I' + xorg_include])
 have_dri3_h = cc.has_header('dri3.h', args: ['-I' + xorg_include])
-have_present_h = cc.has_header('present.h', args: ['-I' + xorg_include])
 have_regionduplicate = cc.has_header('regionstr.h', args: ['-I' + xorg_include])
 have_xf86CursorResetCursor = cc.has_header('xf86Cursor.h', args: ['-I' + xorg_include])
 have_misyncshm = cc.has_header('misyncshm.h', args: ['-I' + xorg_include])
@@ -48,7 +47,6 @@ minor_version = varr[1]
 micro_version = varr[2]
 config_h = configuration_data()
 config_h.set('HAVE_DRI3_H', have_dri3_h ? 1 : 0)
-config_h.set('HAVE_PRESENT_H', have_present_h ? 1 : 0)
 config_h.set('HAVE_MISYNCSHM_H', have_misyncshm ? 1 : 0)
 config_h.set('HAVE_FBGLYPHS', have_fbGlyphs ? 1 : 0)
 config_h.set('HAVE_GBM_BO_USE_FRONT_RENDERING', have_gbm_bo_use_front_rendering ? 1 : 0)

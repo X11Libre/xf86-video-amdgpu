@@ -122,7 +122,6 @@ static PixmapPtr amdgpu_dri3_pixmap_from_fd(ScreenPtr screen,
 {
 	PixmapPtr pixmap;
 
-#ifdef USE_GLAMOR
 	/* Avoid generating a GEM flink name if possible */
 	if (AMDGPUPTR(xf86ScreenToScrn(screen))->use_glamor) {
 		pixmap = glamor_pixmap_from_fd(screen, fd, width, height,
@@ -140,7 +139,6 @@ static PixmapPtr amdgpu_dri3_pixmap_from_fd(ScreenPtr screen,
 			return NULL;
 		}
 	}
-#endif
 
 	if (depth < 8)
 		return NULL;
@@ -179,7 +177,6 @@ static int amdgpu_dri3_fd_from_pixmap(ScreenPtr screen,
 	struct amdgpu_buffer *bo;
 	struct amdgpu_bo_info bo_info;
 	uint32_t fd;
-#ifdef USE_GLAMOR
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	AMDGPUInfoPtr info = AMDGPUPTR(scrn);
 
@@ -195,7 +192,6 @@ static int amdgpu_dri3_fd_from_pixmap(ScreenPtr screen,
 
 		return ret;
 	}
-#endif
 
 	bo = amdgpu_get_pixmap_bo(pixmap);
 	if (!bo)

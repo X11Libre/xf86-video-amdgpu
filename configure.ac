@@ -105,20 +105,7 @@ AM_CONDITIONAL(LIBUDEV, test x$LIBUDEV = xyes)
 SAVE_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $XORG_CFLAGS $GBM_CFLAGS"
 
-AC_MSG_CHECKING([whether to include GLAMOR support])
-AC_ARG_ENABLE(glamor,
-	      AS_HELP_STRING([--disable-glamor],
-			     [Disable glamor, a new GL-based acceleration [default=enabled]]),
-	      [GLAMOR="$enableval"],
-	      [GLAMOR=yes])
-
-if test "x$GLAMOR" != "xno"; then
-	AC_CHECK_HEADERS([glamor.h], [GLAMOR_H="yes"], [GLAMOR_H="no"], [#include "xorg-server.h"])
-	AC_DEFINE(USE_GLAMOR, 1, [Enable glamor acceleration])
-else
-	AC_MSG_RESULT([$GLAMOR])
-fi
-AM_CONDITIONAL(GLAMOR, test x$GLAMOR != xno)
+AC_CHECK_HEADERS([glamor.h], [], [AC_MSG_ERROR([glamor needed])], [#include "xorg-server.h"])
 
 AC_CHECK_DECL(GBM_BO_USE_LINEAR,
 	      [AC_DEFINE(HAVE_GBM_BO_USE_LINEAR, 1, [Have GBM_BO_USE_LINEAR])], [],

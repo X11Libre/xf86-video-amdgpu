@@ -1195,7 +1195,7 @@ amdgpu_scanout_flip(ScreenPtr pScreen, AMDGPUInfoPtr info,
 	drmmode_fb_reference(pAMDGPUEnt->fd, &drmmode_crtc->flip_pending, fb);
 }
 
-static void AMDGPUBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
+static void AMDGPUBlockHandler_KMS(ScreenPtr pScreen, void* pTimeout)
 {
 	ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
 	AMDGPUInfoPtr info = AMDGPUPTR(pScrn);
@@ -1203,7 +1203,7 @@ static void AMDGPUBlockHandler_KMS(BLOCKHANDLER_ARGS_DECL)
 	int c;
 
 	pScreen->BlockHandler = info->BlockHandler;
-	(*pScreen->BlockHandler) (BLOCKHANDLER_ARGS);
+	pScreen->BlockHandler(pScreen, pTimeout);
 	pScreen->BlockHandler = AMDGPUBlockHandler_KMS;
 
 	if (!xf86ScreenToScrn(amdgpu_primary_screen(pScreen))->vtSema)

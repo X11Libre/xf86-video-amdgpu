@@ -1986,7 +1986,6 @@ Bool AMDGPUScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
 	/* Must be after RGB order fixed */
 	fbPictureInit(pScreen, 0, 0);
 
-#ifdef RENDER
 	if ((s = xf86GetOptValString(info->Options, OPTION_SUBPIXEL_ORDER))) {
 		if (strcmp(s, "RGB") == 0)
 			subPixelOrder = SubPixelHorizontalRGB;
@@ -1996,7 +1995,6 @@ Bool AMDGPUScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
 			subPixelOrder = SubPixelNone;
 		PictureSetSubpixelOrder(pScreen, subPixelOrder);
 	}
-#endif
 
 	value = info->use_glamor;
 	from = X_DEFAULT;

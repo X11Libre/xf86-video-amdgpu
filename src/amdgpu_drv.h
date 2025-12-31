@@ -67,22 +67,16 @@
 #include "xf86drm.h"
 #include "amdgpu_drm.h"
 
-#ifdef DAMAGE
 #include "damage.h"
 #include "globals.h"
-#endif
 
 #include "xf86Crtc.h"
 #include "X11/Xatom.h"
+#include "picturestr.h"
 
 #include "amdgpu_dri2.h"
 #include "drmmode_display.h"
 #include "amdgpu_bo_helper.h"
-
-/* Render support */
-#ifdef RENDER
-#include "picturestr.h"
-#endif
 
 struct _SyncFence;
 
@@ -110,9 +104,7 @@ typedef enum {
 	OPTION_ACCEL,
 	OPTION_SW_CURSOR,
 	OPTION_PAGE_FLIP,
-#ifdef RENDER
 	OPTION_SUBPIXEL_ORDER,
-#endif
 	OPTION_ZAPHOD_HEADS,
 	OPTION_ACCEL_METHOD,
 	OPTION_DRI3,
@@ -284,14 +276,12 @@ typedef struct {
 		CopyWindowProcPtr SavedCopyWindow;
 		ChangeWindowAttributesProcPtr SavedChangeWindowAttributes;
 		BitmapToRegionProcPtr SavedBitmapToRegion;
-#ifdef RENDER
 		CompositeProcPtr SavedComposite;
 		TrianglesProcPtr SavedTriangles;
 		GlyphsProcPtr SavedGlyphs;
 		TrapezoidsProcPtr SavedTrapezoids;
 		AddTrapsProcPtr SavedAddTraps;
 		UnrealizeGlyphProcPtr SavedUnrealizeGlyph;
-#endif
 		SharePixmapBackingProcPtr SavedSharePixmapBacking;
 		SetSharedPixmapBackingProcPtr SavedSetSharedPixmapBacking;
 	} glamor;

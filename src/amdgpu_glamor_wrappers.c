@@ -741,8 +741,6 @@ amdgpu_glamor_get_spans(DrawablePtr pDrawable, int wMax, DDXPointPtr ppt,
  * Picture screen rendering wrappers
  */
 
-#ifdef RENDER
-
 static void
 amdgpu_glamor_composite(CARD8 op,
 			PicturePtr pSrc,
@@ -888,9 +886,6 @@ amdgpu_glamor_triangles(CARD8 op, PicturePtr src, PicturePtr dst,
 	}
 }
 
-#endif /* RENDER */
-
-
 /**
  * amdgpu_glamor_close_screen() unwraps its wrapped screen functions and tears
  * down our screen private, before calling down to the next CloseScreen.
@@ -899,9 +894,7 @@ static Bool
 amdgpu_glamor_close_screen(ScreenPtr pScreen)
 {
 	AMDGPUInfoPtr info = AMDGPUPTR(xf86ScreenToScrn(pScreen));
-#ifdef RENDER
 	PictureScreenPtr ps = GetPictureScreenIfSet(pScreen);
-#endif
 
 	pScreen->CreateGC = info->glamor.SavedCreateGC;
 	pScreen->CloseScreen = info->glamor.SavedCloseScreen;
@@ -911,7 +904,6 @@ amdgpu_glamor_close_screen(ScreenPtr pScreen)
 	pScreen->ChangeWindowAttributes =
 	    info->glamor.SavedChangeWindowAttributes;
 	pScreen->BitmapToRegion = info->glamor.SavedBitmapToRegion;
-#ifdef RENDER
 	if (ps) {
 		ps->Composite = info->glamor.SavedComposite;
 		ps->Glyphs = info->glamor.SavedGlyphs;
@@ -922,7 +914,6 @@ amdgpu_glamor_close_screen(ScreenPtr pScreen)
 
 		ps->UnrealizeGlyph = info->glamor.SavedUnrealizeGlyph;
 	}
-#endif
 
 	return pScreen->CloseScreen(pScreen);
 }
@@ -956,24 +947,17 @@ amdgpu_glamor_screen_init(ScreenPtr screen)
 	info->glamor.SavedBitmapToRegion = screen->BitmapToRegion;
 	screen->BitmapToRegion = amdgpu_glamor_bitmap_to_region;
 
-#ifdef RENDER
-	{
-		PictureScreenPtr ps = GetPictureScreenIfSet(screen);
-		if (ps) {
-			info->glamor.SavedComposite = ps->Composite;
-			ps->Composite = amdgpu_glamor_composite;
-
-			info->glamor.SavedUnrealizeGlyph = ps->UnrealizeGlyph;
-
-			ps->Glyphs = amdgpu_glamor_glyphs;
-			ps->Triangles = amdgpu_glamor_triangles;
-			ps->Trapezoids = amdgpu_glamor_trapezoids;
-
-			info->glamor.SavedAddTraps = ps->AddTraps;
-			ps->AddTraps = amdgpu_glamor_add_traps;
-		}
+	PictureScreenPtr ps = GetPictureScreenIfSet(screen);
+	if (ps) {
+		info->glamor.SavedComposite = ps->Composite;
+		ps->Composite = amdgpu_glamor_composite;
+		info->glamor.SavedUnrealizeGlyph = ps->UnrealizeGlyph;
+		ps->Glyphs = amdgpu_glamor_glyphs;
+		ps->Triangles = amdgpu_glamor_triangles;
+		ps->Trapezoids = amdgpu_glamor_trapezoids;
+		info->glamor.SavedAddTraps = ps->AddTraps;
+		ps->AddTraps = amdgpu_glamor_add_traps;
 	}
-#endif
 }
 
 #endif /* USE_GLAMOR */

@@ -84,8 +84,6 @@
 #include "picturestr.h"
 #endif
 
-#include "compat-api.h"
-
 struct _SyncFence;
 
 #ifndef MAX

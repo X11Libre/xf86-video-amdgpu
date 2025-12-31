@@ -50,8 +50,6 @@
 
 #include <amdgpu.h>
 
-#include "compat-api.h"
-
 extern DriverRec AMDGPU;
 
 typedef struct {

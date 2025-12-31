@@ -55,7 +55,6 @@ amdgpu_drv_la_SOURCES += \
 	amdgpu_pixmap.c
 
 EXTRA_DIST = \
-	compat-api.h \
 	amdgpu_bo_helper.h \
 	amdgpu_drm_queue.h \
 	amdgpu_glamor.h \

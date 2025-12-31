@@ -32,12 +32,9 @@
 #include <fb.h>
 #include <fbpict.h>
 
-#ifdef USE_GLAMOR
-
 #include "amdgpu_drv.h"
 #include "amdgpu_glamor.h"
 #include "amdgpu_pixmap.h"
-
 
 /* Are there any outstanding GPU operations for this pixmap? */
 static Bool
@@ -959,5 +956,3 @@ amdgpu_glamor_screen_init(ScreenPtr screen)
 		ps->AddTraps = amdgpu_glamor_add_traps;
 	}
 }
-
-#endif /* USE_GLAMOR */

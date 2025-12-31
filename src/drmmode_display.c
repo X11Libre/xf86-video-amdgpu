@@ -364,8 +364,6 @@ drmmode_crtc_dpms(xf86CrtcPtr crtc, int mode)
 					    crtc->x, crtc->y);
 }
 
-#ifdef USE_GLAMOR
-
 static PixmapPtr
 create_pixmap_for_fbcon(drmmode_ptr drmmode,
 			ScrnInfoPtr pScrn, int fbcon_id)
@@ -403,11 +401,8 @@ out_free_fb:
 	return pixmap;
 }
 
-#endif /* USE_GLAMOR */
-
 void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 {
-#ifdef USE_GLAMOR
 	xf86CrtcConfigPtr   xf86_config = XF86_CRTC_CONFIG_PTR(pScrn);
 	AMDGPUInfoPtr info = AMDGPUPTR(pScrn);
 	ScreenPtr pScreen = pScrn->pScreen;
@@ -453,7 +448,6 @@ void drmmode_copy_fb(ScrnInfoPtr pScrn, drmmode_ptr drmmode)
 
 	pScreen->canDoBGNoneRoot = TRUE;
 	dixDestroyPixmap(src, 0);
-#endif
 
 	return;
 }

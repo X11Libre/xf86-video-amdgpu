@@ -155,8 +155,6 @@ Bool amdgpu_bo_get_handle(struct amdgpu_buffer *bo, uint32_t *handle)
 				handle) == 0;
 }
 
-#ifdef USE_GLAMOR
-
 static void amdgpu_pixmap_do_get_tiling_info(PixmapPtr pixmap)
 {
 	struct amdgpu_pixmap *priv = amdgpu_get_pixmap_private(pixmap);
@@ -172,8 +170,6 @@ static void amdgpu_pixmap_do_get_tiling_info(PixmapPtr pixmap)
 				&gem_metadata, sizeof(gem_metadata)) == 0)
 		priv->tiling_info = gem_metadata.data.tiling_info;
 }
-
-#endif
 
 uint64_t amdgpu_pixmap_get_tiling_info(PixmapPtr pixmap)
 {
@@ -207,7 +203,6 @@ Bool amdgpu_pixmap_get_handle(PixmapPtr pixmap, uint32_t *handle)
 	if (priv->handle_valid)
 		goto success;
 
-#ifdef USE_GLAMOR
 	if (info->use_glamor) {
 		AMDGPUEntPtr pAMDGPUEnt = AMDGPUEntPriv(scrn);
 		CARD16 stride;
@@ -226,7 +221,6 @@ Bool amdgpu_pixmap_get_handle(PixmapPtr pixmap, uint32_t *handle)
 		amdgpu_pixmap_do_get_tiling_info(pixmap);
 		goto success;
 	}
-#endif
 
 	if (!priv->bo || !amdgpu_bo_get_handle(priv->bo, &priv->handle))
 		return FALSE;
@@ -449,13 +443,11 @@ Bool amdgpu_set_shared_pixmap_backing(PixmapPtr ppix, void *fd_handle)
 
 		bo->flags |= AMDGPU_BO_FLAGS_GBM;
 
-#ifdef USE_GLAMOR
 		if (info->use_glamor &&
 		    !amdgpu_glamor_create_textured_pixmap(ppix, bo)) {
 			amdgpu_bo_unref(&bo);
 			return FALSE;
 		}
-#endif
 
 		ret = amdgpu_set_pixmap_bo(ppix, bo);
 		/* amdgpu_set_pixmap_bo increments ref_count if it succeeds */

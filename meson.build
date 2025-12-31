@@ -22,7 +22,7 @@ gbm_dep = dependency('gbm', required: true)
 
 # Optional dependencies
 libudev_dep = dependency('libudev', required: get_option('udev'))
-libgl_dep = dependency('gl', required: get_option('glamor'))
+libgl_dep = dependency('gl', required: true)
 
 # Configurable directories
 moduledir = join_paths(get_option('libdir'), get_option('moduledir'))
@@ -37,7 +37,6 @@ have_dri3_h = cc.has_header('dri3.h', args: ['-I' + xorg_include])
 have_regionduplicate = cc.has_header('regionstr.h', args: ['-I' + xorg_include])
 have_xf86CursorResetCursor = cc.has_header('xf86Cursor.h', args: ['-I' + xorg_include])
 have_misyncshm = cc.has_header('misyncshm.h', args: ['-I' + xorg_include])
-have_glamor = cc.has_header('glamor.h', args: ['-I' + xorg_include])
 
 # Config header
 version = meson.project_version()
@@ -51,9 +50,6 @@ config_h.set('HAVE_MISYNCSHM_H', have_misyncshm ? 1 : 0)
 config_h.set('HAVE_FBGLYPHS', have_fbGlyphs ? 1 : 0)
 config_h.set('HAVE_GBM_BO_USE_FRONT_RENDERING', have_gbm_bo_use_front_rendering ? 1 : 0)
 config_h.set('HAVE_GBM_BO_USE_LINEAR', have_gbm_bo_use_linear ? 1 : 0)
-config_h.set('HAVE_GLAMOR_H', have_glamor ? 1 : 0)
-config_h.set('HAVE_GLAMOR_FINISH', have_glamor ? 1 : 0)
-config_h.set('USE_GLAMOR', get_option('glamor').allowed() ? 1 : 0)
 config_h.set('HAVE_LIBUDEV', libudev_dep.found() ? 1 : 0)
 config_h.set('HAVE_REGIONDUPLICATE', have_regionduplicate ? 1 : 0)
 config_h.set('HAVE_XF86_CURSOR_RESET_CURSOR', have_xf86CursorResetCursor ? 1 : 0)
@@ -79,6 +75,5 @@ summary({
   'configdir': configdir,
   'moduledir': moduledir,
   'CFLAGS': meson.get_compiler('c').get_supported_arguments(['-Wall']),
-  'GLAMOR': get_option('glamor'),
   'LIBUDEV': libudev_dep,
 }, section: 'Configuration')

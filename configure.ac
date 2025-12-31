@@ -136,16 +136,6 @@ AC_CHECK_DECL(GBM_BO_USE_FRONT_RENDERING,
 
 CPPFLAGS="$SAVE_CPPFLAGS"
 
-# Checks for headers/macros for byte swapping
-# Known variants:
-#	<byteswap.h> bswap_16, bswap_32, bswap_64  (glibc)
-#	<sys/endian.h> __swap16, __swap32, __swap64 (OpenBSD)
-#	<sys/endian.h> bswap16, bswap32, bswap64 (other BSD's)
-#	and a fallback to local macros if none of the above are found
-
-# if <byteswap.h> is found, assume it's the correct version
-AC_CHECK_HEADERS([byteswap.h])
-
 AC_SUBST([moduledir])
 
 AC_CONFIG_FILES([

@@ -138,12 +138,7 @@ CPPFLAGS="$SAVE_CPPFLAGS"
 
 AC_SUBST([moduledir])
 
-AC_CONFIG_FILES([
-                Makefile
-                src/Makefile
-                man/Makefile
-                conf/Makefile
-])
+AC_CONFIG_FILES([Makefile src/Makefile man/Makefile conf/Makefile])
 AC_OUTPUT
 
 dnl

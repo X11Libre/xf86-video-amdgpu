@@ -60,6 +60,9 @@ PKG_PROG_PKG_CONFIG([0.25])
 xlibre_video_drivers_dir=`$PKG_CONFIG xlibre-server --variable=video_drivers_dir`
 AC_SUBST(xlibre_video_drivers_dir)
 
+xlibre_conf_dir=`$PKG_CONFIG xlibre-server --variable=xserverconfigdir`
+AC_SUBST(xlibre_conf_dir)
+
 # Store the list of server defined optional extensions in REQUIRED_MODULES
 XORG_DRIVER_CHECK_EXT(XV, videoproto)
 
@@ -70,20 +73,6 @@ PKG_CHECK_MODULES(GBM, [gbm])
 
 # Obtain compiler/linker options for the driver dependencies
 PKG_CHECK_MODULES(XORG, [xorg-server >= 25.0.0 xproto fontsproto xf86driproto randrproto renderproto xextproto >= 7.0.99.1 $REQUIRED_MODULES])
-
-# Section "OutputClass" is only supported as of xserver 1.16
-PKG_CHECK_EXISTS([xorg-server >= 1.16],
-		 [sysconfigdir=`$PKG_CONFIG --variable=sysconfigdir xorg-server`],
-		 [sysconfigdir=""])
-AM_CONDITIONAL(HAS_XORG_CONF_DIR, [test "x$sysconfigdir" != "x"])
-
-# Define a configure option for an alternate X Server configuration directory
-AC_ARG_WITH(xorg-conf-dir,
-            AS_HELP_STRING([--with-xorg-conf-dir=DIR],
-                           [Default xorg.conf.d directory [[default=${prefix}/share/X11/xorg.conf.d]]]),
-            [configdir="$withval"],
-            [configdir='${prefix}/share/X11/xorg.conf.d'])
-AC_SUBST(configdir)
 
 AC_ARG_ENABLE([udev],
 		AS_HELP_STRING([--disable-udev], [Disable libudev support [default=auto]]),
@@ -127,8 +116,8 @@ echo "        prefix:              $prefix"
 echo "        exec_prefix:         $exec_prefix"
 echo "        libdir:              $libdir"
 echo "        includedir:          $includedir"
-echo "        configdir:           $configdir"
 echo "        video_drivers_dir:   $xlibre_video_drivers_dir"
+echo "        xlibre_conf_dir:     $xlibre_conf_dir"
 echo ""
 echo "        CFLAGS:              $CFLAGS"
 echo "        CXXFLAGS:            $CXXFLAGS"

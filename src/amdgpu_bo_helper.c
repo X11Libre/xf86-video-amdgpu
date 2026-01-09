@@ -87,12 +87,10 @@ struct amdgpu_buffer *amdgpu_alloc_pixmap_bo(ScrnInfoPtr pScrn, int width,
 			bo_use |= GBM_BO_USE_FRONT_RENDERING;
 #endif
 
-#ifdef HAVE_GBM_BO_USE_LINEAR
 		if (usage_hint == CREATE_PIXMAP_USAGE_SHARED ||
 		    (usage_hint & AMDGPU_CREATE_PIXMAP_LINEAR)) {
 			bo_use |= GBM_BO_USE_LINEAR;
 		}
-#endif
 
 		pixmap_buffer->bo.gbm = gbm_bo_create(info->gbm, width, height,
 						      gbm_format,

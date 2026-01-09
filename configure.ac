@@ -93,11 +93,6 @@ CPPFLAGS="$CPPFLAGS $XORG_CFLAGS $GBM_CFLAGS"
 
 AC_CHECK_HEADERS([glamor.h], [], [AC_MSG_ERROR([glamor needed])], [#include "xorg-server.h"])
 
-AC_CHECK_DECL(GBM_BO_USE_FRONT_RENDERING,
-	      [AC_DEFINE(HAVE_GBM_BO_USE_FRONT_RENDERING, 1, [Have GBM_BO_USE_FRONT_RENDERING])], [],
-	      [#include <stdlib.h>
-	       #include <gbm.h>])
-
 CPPFLAGS="$SAVE_CPPFLAGS"
 
 AC_CONFIG_FILES([Makefile src/Makefile man/Makefile conf/Makefile])

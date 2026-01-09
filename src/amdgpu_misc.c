@@ -27,21 +27,6 @@
 
 #include "xf86.h"
 
-/* Module loader interface for subsidiary driver module */
-
-static XF86ModuleVersionInfo AMDGPUVersionRec = {
-	AMDGPU_DRIVER_NAME,
-	MODULEVENDORSTRING,
-	MODINFOSTRING1,
-	MODINFOSTRING2,
-	XORG_VERSION_CURRENT,
-	AMDGPU_VERSION_MAJOR, AMDGPU_VERSION_MINOR, AMDGPU_VERSION_PATCH,
-	ABI_CLASS_VIDEODRV,
-	ABI_VIDEODRV_VERSION,
-	MOD_CLASS_VIDEODRV,
-	{0, 0, 0, 0}
-};
-
 /*
  * AMDGPUSetup --
  *
@@ -59,9 +44,11 @@ static void *AMDGPUSetup(void* Module, void* Options, int *ErrorMajor, int *Erro
 	return (void*) TRUE;
 }
 
-/* The following record must be called amdgpuModuleData */
-_X_EXPORT XF86ModuleData amdgpuModuleData = {
-	&AMDGPUVersionRec,
-	AMDGPUSetup,
-	NULL
-};
+XF86_MODULE_DATA_VIDEO(
+    amdgpu,
+    AMDGPUSetup,
+    NULL,
+    "amdgpu",
+    PACKAGE_VERSION_MAJOR,
+    PACKAGE_VERSION_MINOR,
+    PACKAGE_VERSION_PATCHLEVEL);

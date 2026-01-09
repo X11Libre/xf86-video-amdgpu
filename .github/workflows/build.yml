@@ -9,7 +9,7 @@ jobs:
     ubuntu:
         strategy:
             matrix:
-                xserver-version: [ master, xlibre-xserver-25.1.0, xlibre-xserver-25.0.0.18 ]
+                xserver-version: [ master, xlibre-xserver-25.1.1, xlibre-xserver-25.0.0.20 ]
         runs-on: ubuntu-latest
         steps:
             - uses: X11Libre/action-build-driver/target/ubuntu@v0.3.8
@@ -19,7 +19,7 @@ jobs:
     freebsd:
         strategy:
             matrix:
-                xserver-version: [ master, xlibre-xserver-25.1.0, xlibre-xserver-25.0.0.18 ]
+                xserver-version: [ master, xlibre-xserver-25.1.1, xlibre-xserver-25.0.0.20 ]
         runs-on: ubuntu-latest
         steps:
             - uses: X11Libre/action-build-driver/target/freebsd@v0.3.8
@@ -30,7 +30,7 @@ jobs:
         strategy:
             matrix:
                 # xlibre-xserver-25.0.x not compiling on dragonfly yet
-                xserver-version: [ master, xlibre-xserver-25.1.0 ]
+                xserver-version: [ master, xlibre-xserver-25.1.1 ]
         runs-on: ubuntu-latest
         steps:
             - uses: X11Libre/action-build-driver/target/dragonfly@v0.3.8
@@ -40,7 +40,7 @@ jobs:
     netbsd:
         strategy:
             matrix:
-                xserver-version: [ master, xlibre-xserver-25.1.0 ]
+                xserver-version: [ master, xlibre-xserver-25.1.1 ]
         runs-on: ubuntu-latest
         steps:
             - uses: X11Libre/action-build-driver/target/netbsd@v0.3.8

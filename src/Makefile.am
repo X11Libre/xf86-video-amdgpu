@@ -43,7 +43,7 @@ endif
 
 amdgpu_drv_la_LTLIBRARIES = amdgpu_drv.la
 amdgpu_drv_la_LDFLAGS = -module -avoid-version
-amdgpu_drv_ladir = @moduledir@/drivers
+amdgpu_drv_ladir = @xlibre_video_drivers_dir@
 amdgpu_drv_la_SOURCES = \
 	amdgpu_video.c \
 	amdgpu_misc.c amdgpu_probe.c \

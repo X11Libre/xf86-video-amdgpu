@@ -55,13 +55,10 @@ fi
 
 AH_TOP([#include "xorg-server.h"])
 
-# Define a configure option for an alternate module directory
 PKG_PROG_PKG_CONFIG([0.25])
-AC_ARG_WITH(xorg-module-dir,
-            AS_HELP_STRING([--with-xorg-module-dir=DIR],
-                           [Default xorg module directory]),
-            [moduledir="$withval"],
-            [moduledir=`$PKG_CONFIG --variable=moduledir xorg-server`])
+
+xlibre_video_drivers_dir=`$PKG_CONFIG xlibre-server --variable=video_drivers_dir`
+AC_SUBST(xlibre_video_drivers_dir)
 
 # Store the list of server defined optional extensions in REQUIRED_MODULES
 XORG_DRIVER_CHECK_EXT(XV, videoproto)
@@ -119,8 +116,6 @@ AC_CHECK_DECL(GBM_BO_USE_FRONT_RENDERING,
 
 CPPFLAGS="$SAVE_CPPFLAGS"
 
-AC_SUBST([moduledir])
-
 AC_CONFIG_FILES([Makefile src/Makefile man/Makefile conf/Makefile])
 AC_OUTPUT
 
@@ -133,7 +128,7 @@ echo "        exec_prefix:         $exec_prefix"
 echo "        libdir:              $libdir"
 echo "        includedir:          $includedir"
 echo "        configdir:           $configdir"
-
+echo "        video_drivers_dir:   $xlibre_video_drivers_dir"
 echo ""
 echo "        CFLAGS:              $CFLAGS"
 echo "        CXXFLAGS:            $CXXFLAGS"

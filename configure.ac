@@ -88,13 +88,6 @@ if test "x$enable_udev" != "xno"; then
 fi
 AM_CONDITIONAL(LIBUDEV, test x$LIBUDEV = xyes)
 
-SAVE_CPPFLAGS="$CPPFLAGS"
-CPPFLAGS="$CPPFLAGS $XORG_CFLAGS $GBM_CFLAGS"
-
-AC_CHECK_HEADERS([glamor.h], [], [AC_MSG_ERROR([glamor needed])], [#include "xorg-server.h"])
-
-CPPFLAGS="$SAVE_CPPFLAGS"
-
 AC_CONFIG_FILES([Makefile src/Makefile man/Makefile conf/Makefile])
 AC_OUTPUT
 

@@ -542,6 +542,8 @@ amdgpu_dri2_schedule_flip(xf86CrtcPtr crtc, ClientPtr client,
 		info->drmmode.dri2_flipping = TRUE;
 		return TRUE;
 	}
+
+	free(flip_info);
 	return FALSE;
 }
 

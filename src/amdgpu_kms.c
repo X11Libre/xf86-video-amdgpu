@@ -2355,6 +2355,8 @@ static Bool amdgpu_setup_kernel_mem(ScreenPtr pScreen)
 
 				if (!(drmmode_crtc->cursor_buffer[i])) {
 					ErrorF("Failed to allocate cursor buffer memory\n");
+					if (i > 0)
+						amdgpu_bo_unref(&drmmode_crtc->cursor_buffer[0]);
 					return FALSE;
 				}
 

@@ -381,10 +381,12 @@ amdgpu_present_flip(RRCrtcPtr crtc, uint64_t event_id, uint64_t target_msc,
 				 amdgpu_present_flip_abort,
 				 sync_flip ? FLIP_VSYNC : FLIP_ASYNC,
 				 target_msc);
-	if (!ret)
+	if (!ret) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR, "present flip failed\n");
-	else
+		free(event);
+	} else {
 		info->drmmode.present_flipping = TRUE;
+	}
 
 	return ret;
 }
@@ -422,8 +424,11 @@ amdgpu_present_unflip(ScreenPtr screen, uint64_t event_id)
 	amdgpu_glamor_flush(scrn);
 	if (amdgpu_do_pageflip(scrn, AMDGPU_DRM_QUEUE_CLIENT_DEFAULT, pixmap,
 			       event_id, event, NULL, amdgpu_present_flip_event,
-			       amdgpu_present_flip_abort, flip_sync, 0))
+			       amdgpu_present_flip_abort, flip_sync, 0)) {
 		return;
+	}
+
+	free(event);
 
 modeset:
 	amdgpu_glamor_finish(scrn);

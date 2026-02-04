@@ -170,6 +170,162 @@ free_pixmap:
 	return NULL;
 }
 
+/* Map X depth to GBM format, returns FALSE on failure */
+static Bool
+gbm_format_from_depth(CARD8 depth, uint32_t *gbm_format)
+{
+	switch (depth) {
+	case 15:
+		*gbm_format = GBM_FORMAT_ARGB1555;
+		return TRUE;
+	case 16:
+		*gbm_format = GBM_FORMAT_RGB565;
+		return TRUE;
+	case 24:
+		*gbm_format = GBM_FORMAT_XRGB8888;
+		return TRUE;
+	case 30:
+		*gbm_format = GBM_FORMAT_ARGB2101010;
+		return TRUE;
+	case 32:
+		*gbm_format = GBM_FORMAT_ARGB8888;
+		return TRUE;
+	default:
+		return FALSE;
+	}
+}
+
+static PixmapPtr amdgpu_dri3_pixmap_from_fds(ScreenPtr screen,
+					    CARD8 num_fds,
+					    const int *fds,
+					    CARD16 width,
+					    CARD16 height,
+					    const CARD32 *strides,
+					    const CARD32 *offsets,
+					    CARD8 depth,
+					    CARD8 bpp,
+					    CARD64 modifier)
+{
+	PixmapPtr pixmap;
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	AMDGPUInfoPtr info = AMDGPUPTR(scrn);
+	struct gbm_device *gbm;
+	struct gbm_bo *bo;
+	Bool ret;
+	int i;
+	uint32_t gbm_format;
+
+	if (!info->use_glamor)
+		goto non_glamor_path;
+
+	/* glamor path: use GBM to import multi-plane buffers */
+	gbm = glamor_egl_get_gbm_device(screen);
+	if (!gbm)
+		goto non_glamor_path;
+
+	pixmap = screen->CreatePixmap(screen, 0, 0, depth, 0);
+	if (!pixmap)
+		return NULL;
+
+	/* Map X depth to GBM format */
+	if (!gbm_format_from_depth(depth, &gbm_format))
+		goto error;
+
+#ifdef GBM_BO_IMPORT_FD_MODIFIER
+	/* Try multi-plane import with modifier first */
+	if (modifier != DRM_FORMAT_MOD_INVALID && num_fds > 1) {
+		struct gbm_import_fd_modifier_data import_data = { 0 };
+
+		import_data.width = width;
+		import_data.height = height;
+		import_data.format = gbm_format;
+		import_data.num_fds = num_fds;
+		import_data.modifier = modifier;
+		for (i = 0; i < num_fds; i++) {
+			import_data.fds[i] = fds[i];
+			import_data.strides[i] = strides[i];
+			import_data.offsets[i] = offsets[i];
+		}
+		bo = gbm_bo_import(gbm, GBM_BO_IMPORT_FD_MODIFIER, &import_data,
+				  GBM_BO_USE_RENDERING);
+	} else
+#endif
+	{
+		/* Single plane or no modifier - use GBM_BO_IMPORT_FD */
+		struct gbm_import_fd_data import_data = { 0 };
+
+		if (num_fds != 1)
+			goto error;
+
+		import_data.fd = fds[0];
+		import_data.width = width;
+		import_data.height = height;
+		import_data.stride = strides[0];
+		import_data.format = gbm_format;
+
+		bo = gbm_bo_import(gbm, GBM_BO_IMPORT_FD, &import_data,
+				  GBM_BO_USE_RENDERING);
+	}
+
+	if (bo) {
+		screen->ModifyPixmapHeader(pixmap, width, height, 0, 0, strides[0], NULL);
+		ret = glamor_egl_create_textured_pixmap_from_gbm_bo(pixmap, bo, FALSE);
+		gbm_bo_destroy(bo);
+		if (ret) {
+			struct amdgpu_pixmap *priv = calloc(1, sizeof(*priv));
+
+			if (priv) {
+				amdgpu_set_pixmap_private(pixmap, priv);
+				pixmap->usage_hint |= AMDGPU_CREATE_PIXMAP_DRI2;
+				return pixmap;
+			}
+
+			screen->DestroyPixmap(pixmap);
+			return NULL;
+		}
+	}
+
+error:
+	if (pixmap)
+		dixDestroyPixmap(pixmap, 0);
+	return NULL;
+
+non_glamor_path:
+	/* Non-glamor path: only supports single-plane buffers.
+	 * The SetSharedPixmapBacking interface only accepts a single FD.
+	 */
+	if (num_fds != 1)
+		return NULL;
+
+	if (depth < 8)
+		return NULL;
+
+	switch (bpp) {
+	case 8:
+	case 16:
+	case 32:
+		break;
+	default:
+		return NULL;
+	}
+
+	pixmap = screen->CreatePixmap(screen, 0, 0, depth,
+				      AMDGPU_CREATE_PIXMAP_DRI2);
+	if (!pixmap)
+		return NULL;
+
+	if (!screen->ModifyPixmapHeader(pixmap, width, height, 0, bpp, strides[0],
+					NULL))
+		goto free_pixmap;
+
+	if (screen->SetSharedPixmapBacking(pixmap, (void*)(intptr_t)fds[0]))
+		return pixmap;
+
+free_pixmap:
+	fbDestroyPixmap(pixmap);
+	return NULL;
+}
+
 static int amdgpu_dri3_fd_from_pixmap(ScreenPtr screen,
 				      PixmapPtr pixmap,
 				      CARD16 *stride,
@@ -338,7 +494,7 @@ static dri3_screen_info_rec amdgpu_dri3_screen_info = {
 	.pixmap_from_fd = amdgpu_dri3_pixmap_from_fd,
 	.fd_from_pixmap = amdgpu_dri3_fd_from_pixmap,
 	/* Version 2 */
-	.pixmap_from_fds = NULL,
+	.pixmap_from_fds = amdgpu_dri3_pixmap_from_fds,
 	.fds_from_pixmap = amdgpu_dri3_fds_from_pixmap,
 	.get_formats = amdgpu_dri3_get_formats,
 	.get_modifiers = NULL,

@@ -566,17 +566,85 @@ amdgpu_dri3_get_modifiers(ScreenPtr screen, uint32_t format,
 	return count;
 }
 
+static int
+amdgpu_dri3_get_drawable_modifiers(DrawablePtr draw, uint32_t format,
+				   uint32_t *num_modifiers, uint64_t **modifiers)
+{
+	ScrnInfoPtr scrn = xf86ScreenToScrn(draw->pScreen);
+	AMDGPUInfoPtr info = AMDGPUPTR(scrn);
+	uint64_t *mods;
+	uint32_t count;
+	int asic_family;
+
+	/* Get the ASIC family to determine which modifiers to advertise */
+	asic_family = info->family;
+
+	/* Determine which set of modifiers to return based on ASIC family.
+	 * For drawables, we return the same modifiers as screen-level modifiers.
+	 */
+	if (asic_family >= AMDGPU_FAMILY_GC_12_0_0) {
+		static uint64_t gfx12_mods[] = {
+			DRM_FORMAT_MOD_INVALID,
+			AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX12 |
+				AMD_FMT_MOD_TILE_GFX12_64K_2D,
+		};
+		mods = gfx12_mods;
+		count = sizeof(gfx12_mods) / sizeof(gfx12_mods[0]);
+	} else if (asic_family >= AMDGPU_FAMILY_NV) {
+		/* Navi and newer (GFX10+) */
+		static uint64_t gfx10_mods[] = {
+			DRM_FORMAT_MOD_INVALID,
+			AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX10 |
+				AMD_FMT_MOD_TILE_GFX9_64K_S,
+			AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX10 |
+				AMD_FMT_MOD_TILE_GFX9_64K_D,
+		};
+		mods = gfx10_mods;
+		count = sizeof(gfx10_mods) / sizeof(gfx10_mods[0]);
+	} else if (asic_family >= AMDGPU_FAMILY_AI) {
+		/* Vega and newer (GFX9+) */
+		static uint64_t gfx9_mods[] = {
+			DRM_FORMAT_MOD_INVALID,
+			AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX9 |
+				AMD_FMT_MOD_TILE_GFX9_64K_S,
+			AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX9 |
+				AMD_FMT_MOD_TILE_GFX9_64K_D,
+		};
+		mods = gfx9_mods;
+		count = sizeof(gfx9_mods) / sizeof(gfx9_mods[0]);
+	} else {
+		/* For older chips, only support LINEAR */
+		static uint64_t default_mods[] = {
+			DRM_FORMAT_MOD_INVALID,
+		};
+		mods = default_mods;
+		count = sizeof(default_mods) / sizeof(default_mods[0]);
+	}
+
+	/* Allocate and copy modifiers */
+	*modifiers = malloc(count * sizeof(uint64_t));
+	if (!*modifiers)
+		return FALSE;
+
+	memcpy(*modifiers, mods, count * sizeof(uint64_t));
+	*num_modifiers = count;
+
+	return TRUE;
+}
+
 static dri3_screen_info_rec amdgpu_dri3_screen_info = {
 	.version = 2,
 	.open = amdgpu_dri3_open,
 	.pixmap_from_fd = amdgpu_dri3_pixmap_from_fd,
+	// Version 1.1
 	.fd_from_pixmap = amdgpu_dri3_fd_from_pixmap,
-	/* Version 2 */
+	// Version 1.2
 	.pixmap_from_fds = amdgpu_dri3_pixmap_from_fds,
 	.fds_from_pixmap = amdgpu_dri3_fds_from_pixmap,
 	.get_formats = amdgpu_dri3_get_formats,
 	.get_modifiers = amdgpu_dri3_get_modifiers,
-	.get_drawable_modifiers = NULL
+	.get_drawable_modifiers = amdgpu_dri3_get_drawable_modifiers
+	// Version 1.4
 };
 
 Bool

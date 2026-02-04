@@ -36,6 +36,7 @@
 #include <errno.h>
 #include <libgen.h>
 #include <drm/drm_fourcc.h>
+#include <drm/amdgpu_drm.h>
 
 static int open_card_node(ScreenPtr screen, int *out)
 {
@@ -488,6 +489,83 @@ amdgpu_dri3_get_formats(ScreenPtr screen, unsigned int *num_formats,
 	return sizeof(formats_arr) / sizeof(formats_arr[0]);
 }
 
+/*
+ * Returns supported modifiers for a given format.
+ * This includes LINEAR (DRM_FORMAT_MOD_INVALID) and AMD-specific tiled modifiers.
+ */
+static int
+amdgpu_dri3_get_modifiers(ScreenPtr screen, uint32_t format,
+			   uint32_t *num_modifiers, uint64_t **modifiers)
+{
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	AMDGPUInfoPtr info = AMDGPUPTR(scrn);
+	static uint64_t default_modifiers[] = {
+		/* LINEAR - no tiling */
+		DRM_FORMAT_MOD_INVALID,
+	};
+	static uint64_t amd_tiled_modifiers[] = {
+		/* LINEAR - no tiling */
+		DRM_FORMAT_MOD_INVALID,
+		/* AMD GFX9 64K_S tiled */
+		AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX9 |
+			AMD_FMT_MOD_TILE_GFX9_64K_S,
+		/* AMD GFX9 64K_D tiled */
+		AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX9 |
+			AMD_FMT_MOD_TILE_GFX9_64K_D,
+	};
+	static uint64_t amd_tiled_modifiers_gfx10[] = {
+		/* LINEAR - no tiling */
+		DRM_FORMAT_MOD_INVALID,
+		/* AMD GFX10 64K_S tiled */
+		AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX10 |
+			AMD_FMT_MOD_TILE_GFX9_64K_S,
+		/* AMD GFX10 64K_D tiled */
+		AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX10 |
+			AMD_FMT_MOD_TILE_GFX9_64K_D,
+	};
+	static uint64_t amd_tiled_modifiers_gfx12[] = {
+		/* LINEAR - no tiling */
+		DRM_FORMAT_MOD_INVALID,
+		/* AMD GFX12 64K_2D tiled */
+		AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX12 |
+			AMD_FMT_MOD_TILE_GFX12_64K_2D,
+	};
+	uint64_t *mods;
+	uint32_t count;
+	int asic_family;
+
+	/* Get the ASIC family to determine which modifiers to advertise */
+	asic_family = info->family;
+
+	/* Determine which set of modifiers to return based on ASIC family */
+	if (asic_family >= AMDGPU_FAMILY_GC_12_0_0) {
+		mods = amd_tiled_modifiers_gfx12;
+		count = sizeof(amd_tiled_modifiers_gfx12) / sizeof(amd_tiled_modifiers_gfx12[0]);
+	} else if (asic_family >= AMDGPU_FAMILY_NV) {
+		/* Navi and newer (GFX10+) */
+		mods = amd_tiled_modifiers_gfx10;
+		count = sizeof(amd_tiled_modifiers_gfx10) / sizeof(amd_tiled_modifiers_gfx10[0]);
+	} else if (asic_family >= AMDGPU_FAMILY_AI) {
+		/* Vega and newer (GFX9+) */
+		mods = amd_tiled_modifiers;
+		count = sizeof(amd_tiled_modifiers) / sizeof(amd_tiled_modifiers[0]);
+	} else {
+		/* For older chips, only support LINEAR */
+		mods = default_modifiers;
+		count = sizeof(default_modifiers) / sizeof(default_modifiers[0]);
+	}
+
+	/* Allocate and copy modifiers */
+	*modifiers = malloc(count * sizeof(uint64_t));
+	if (!*modifiers)
+		return 0;
+
+	memcpy(*modifiers, mods, count * sizeof(uint64_t));
+	*num_modifiers = count;
+
+	return count;
+}
+
 static dri3_screen_info_rec amdgpu_dri3_screen_info = {
 	.version = 2,
 	.open = amdgpu_dri3_open,
@@ -497,7 +575,7 @@ static dri3_screen_info_rec amdgpu_dri3_screen_info = {
 	.pixmap_from_fds = amdgpu_dri3_pixmap_from_fds,
 	.fds_from_pixmap = amdgpu_dri3_fds_from_pixmap,
 	.get_formats = amdgpu_dri3_get_formats,
-	.get_modifiers = NULL,
+	.get_modifiers = amdgpu_dri3_get_modifiers,
 	.get_drawable_modifiers = NULL
 };
 

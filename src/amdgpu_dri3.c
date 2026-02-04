@@ -288,6 +288,50 @@ static int amdgpu_dri3_fds_from_pixmap(ScreenPtr screen,
 	return 1;
 }
 
+static int
+amdgpu_dri3_get_formats(ScreenPtr screen, unsigned int *num_formats,
+		    unsigned int **formats)
+{
+	static const uint32_t formats_arr[] = {
+		/* 32-bit formats */
+		DRM_FORMAT_ARGB8888,
+		DRM_FORMAT_XRGB8888,
+		DRM_FORMAT_BGRA8888,
+		DRM_FORMAT_BGRX8888,
+		/* 24-bit formats */
+		DRM_FORMAT_RGB888,
+		DRM_FORMAT_BGR888,
+		/* 16-bit formats */
+		DRM_FORMAT_RGB565,
+		DRM_FORMAT_BGR565,
+		/* YUV 4:2:0 formats */
+		DRM_FORMAT_NV12,
+		DRM_FORMAT_YUV420,
+		DRM_FORMAT_P010,
+		/* YUV 4:2:2 formats */
+		DRM_FORMAT_NV16,
+		DRM_FORMAT_YUV422,
+		/* YUV 4:4:4 formats */
+		DRM_FORMAT_YUV444,
+		DRM_FORMAT_XYUV8888,
+		/* 10-bit formats */
+		DRM_FORMAT_ARGB2101010,
+		DRM_FORMAT_XRGB2101010,
+		DRM_FORMAT_BGRA1010102,
+		DRM_FORMAT_BGRX1010102,
+		/* 16-bit alpha formats */
+		DRM_FORMAT_RGBA5551,
+		DRM_FORMAT_RGBA4444,
+		/* 8-bit formats */
+		DRM_FORMAT_RGB332,
+		DRM_FORMAT_BGR233,
+	};
+
+	*num_formats = sizeof(formats_arr) / sizeof(formats_arr[0]);
+	*formats = (unsigned int *)formats_arr;
+	return sizeof(formats_arr) / sizeof(formats_arr[0]);
+}
+
 static dri3_screen_info_rec amdgpu_dri3_screen_info = {
 	.version = 2,
 	.open = amdgpu_dri3_open,
@@ -296,7 +340,7 @@ static dri3_screen_info_rec amdgpu_dri3_screen_info = {
 	/* Version 2 */
 	.pixmap_from_fds = NULL,
 	.fds_from_pixmap = amdgpu_dri3_fds_from_pixmap,
-	.get_formats = NULL,
+	.get_formats = amdgpu_dri3_get_formats,
 	.get_modifiers = NULL,
 	.get_drawable_modifiers = NULL
 };

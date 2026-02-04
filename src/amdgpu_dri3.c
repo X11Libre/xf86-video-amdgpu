@@ -35,6 +35,7 @@
 #include <gbm.h>
 #include <errno.h>
 #include <libgen.h>
+#include <drm/drm_fourcc.h>
 
 static int open_card_node(ScreenPtr screen, int *out)
 {
@@ -212,11 +213,92 @@ static int amdgpu_dri3_fd_from_pixmap(ScreenPtr screen,
 	return fd;
 }
 
+static int amdgpu_dri3_fds_from_pixmap(ScreenPtr screen,
+				 PixmapPtr pixmap,
+				 int *fds,
+				 uint32_t *strides,
+				 uint32_t *offsets,
+				 uint64_t *modifier)
+{
+	struct amdgpu_buffer *bo;
+	struct amdgpu_bo_info bo_info;
+	uint32_t fd;
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	AMDGPUInfoPtr info = AMDGPUPTR(scrn);
+
+	if (info->use_glamor) {
+		/* For glamor, we need to get the GBM BO to extract modifier info */
+		CARD16 stride16;
+		CARD32 size;
+		int ret;
+
+		ret = glamor_fd_from_pixmap(screen, pixmap, &stride16, &size);
+		if (ret < 0)
+			return -1;
+
+		fds[0] = ret;
+		strides[0] = stride16;
+		offsets[0] = 0;
+
+		/* Flush any pending drawing operations */
+		amdgpu_glamor_flush(scrn);
+
+		/* Try to get the modifier from the pixmap's GBM BO.
+		 * Note: This is a best-effort attempt since glamor_fd_from_pixmap
+		 * doesn't expose the GBM BO directly.
+		 */
+		*modifier = DRM_FORMAT_MOD_INVALID;
+
+		return 1;
+	}
+
+	bo = amdgpu_get_pixmap_bo(pixmap);
+	if (!bo)
+		return -1;
+
+	if (pixmap->devKind > UINT32_MAX)
+		return -1;
+
+	if (amdgpu_bo_query_info(bo->bo.amdgpu, &bo_info) != 0)
+		return -1;
+
+	if (amdgpu_bo_export(bo->bo.amdgpu, amdgpu_bo_handle_type_dma_buf_fd,
+			     &fd) != 0)
+		return -1;
+
+	fds[0] = fd;
+	strides[0] = pixmap->devKind;
+	offsets[0] = 0;
+
+	/* For non-GBM buffers, use the tiling info to derive the modifier.
+	 * DRM_FORMAT_MOD_INVALID indicates no modifier (linear layout).
+	 * TODO: Extract actual modifier from bo_info.metadata.tiling_info
+	 * for AMDGPU tiled surfaces. This requires mapping the legacy
+	 * tiling flags to DRM modifiers.
+	 */
+	*modifier = DRM_FORMAT_MOD_INVALID;
+
+	if (bo->flags & AMDGPU_BO_FLAGS_GBM) {
+		/* For GBM buffers, try to get the modifier from the GBM BO */
+		uint64_t gbm_modifier = gbm_bo_get_modifier(bo->bo.gbm);
+		if (gbm_modifier != DRM_FORMAT_MOD_INVALID)
+			*modifier = gbm_modifier;
+	}
+
+	return 1;
+}
+
 static dri3_screen_info_rec amdgpu_dri3_screen_info = {
-	.version = 0,
+	.version = 2,
 	.open = amdgpu_dri3_open,
 	.pixmap_from_fd = amdgpu_dri3_pixmap_from_fd,
-	.fd_from_pixmap = amdgpu_dri3_fd_from_pixmap
+	.fd_from_pixmap = amdgpu_dri3_fd_from_pixmap,
+	/* Version 2 */
+	.pixmap_from_fds = NULL,
+	.fds_from_pixmap = amdgpu_dri3_fds_from_pixmap,
+	.get_formats = NULL,
+	.get_modifiers = NULL,
+	.get_drawable_modifiers = NULL
 };
 
 Bool

@@ -290,6 +290,33 @@ amdgpu_dri3_import_syncobj(ClientPtr client, ScreenPtr screen,
     return &amdgpu_syncobj->base;
 }
 
+static int open_card_node(ScreenPtr screen, int *out);
+static int open_render_node(ScreenPtr screen, int *out);
+static int amdgpu_dri3_open(ScreenPtr screen, RRProviderPtr provider, int *out);
+
+static int
+amdgpu_dri3_open_client(ClientPtr client, ScreenPtr screen,
+			 RRProviderPtr provider, int *out)
+{
+	return amdgpu_dri3_open(screen, provider, out);
+}
+
+static int
+amdgpu_dri3_open(ScreenPtr screen, RRProviderPtr provider, int *out)
+{
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	AMDGPUEntPtr pAMDGPUEnt = AMDGPUEntPriv(scrn);
+	int ret = BadAlloc;
+
+	if (pAMDGPUEnt->render_node)
+		ret = open_render_node(screen, out);
+
+	if (ret != Success)
+		ret = open_card_node(screen, out);
+
+	return ret;
+}
+
 static int open_card_node(ScreenPtr screen, int *out)
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
@@ -348,22 +375,6 @@ static int open_render_node(ScreenPtr screen, int *out)
 
 	*out = fd;
 	return Success;
-}
-
-static int
-amdgpu_dri3_open(ScreenPtr screen, RRProviderPtr provider, int *out)
-{
-	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-	AMDGPUEntPtr pAMDGPUEnt = AMDGPUEntPriv(scrn);
-	int ret = BadAlloc;
-
-	if (pAMDGPUEnt->render_node)
-		ret = open_render_node(screen, out);
-
-	if (ret != Success)
-		ret = open_card_node(screen, out);
-
-	return ret;
 }
 
 static PixmapPtr amdgpu_dri3_pixmap_from_fd(ScreenPtr screen,
@@ -897,8 +908,10 @@ amdgpu_dri3_get_drawable_modifiers(DrawablePtr draw, uint32_t format,
 
 static dri3_screen_info_rec amdgpu_dri3_screen_info = {
 	.version = 4,
+	/* Version 1 */
 	.open = amdgpu_dri3_open,
 	.pixmap_from_fd = amdgpu_dri3_pixmap_from_fd,
+	.open_client = amdgpu_dri3_open_client,
 	/* Version 1.1 */
 	.fd_from_pixmap = amdgpu_dri3_fd_from_pixmap,
 	/* Version 1.2 */

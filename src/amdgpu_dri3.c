@@ -35,6 +35,7 @@
 #include <gbm.h>
 #include <errno.h>
 #include <libgen.h>
+#include <string.h>
 #include <drm/drm_fourcc.h>
 #include <drm/amdgpu_drm.h>
 #include <unistd.h>
@@ -152,7 +153,7 @@ amdgpu_dri3_syncobj_has_fence(struct dri3_syncobj *syncobj, uint64_t point)
         (struct amdgpu_dri3_syncobj *)syncobj;
     ScrnInfoPtr scrn = xf86ScreenToScrn(syncobj->screen);
     AMDGPUEntPtr pAMDGPUEnt = AMDGPUEntPriv(scrn);
-    struct drm_syncobj_handle handle_args;
+    struct drm_syncobj_handle handle_args = { 0 };
     int ret;
 
     (void)point;
@@ -161,7 +162,6 @@ amdgpu_dri3_syncobj_has_fence(struct dri3_syncobj *syncobj, uint64_t point)
     handle_args.handle = amdgpu_syncobj->syncobj_handle;
     handle_args.flags = DRM_SYNCOBJ_HANDLE_TO_FD_FLAGS_EXPORT_SYNC_FILE;
     handle_args.fd = -1;
-    handle_args.point = 0;
 
     ret = drmIoctl(pAMDGPUEnt->fd, DRM_IOCTL_SYNCOBJ_HANDLE_TO_FD, &handle_args);
     if (ret == 0) {
@@ -211,7 +211,7 @@ amdgpu_dri3_syncobj_export_fence(struct dri3_syncobj *syncobj, uint64_t point)
         (struct amdgpu_dri3_syncobj *)syncobj;
     ScrnInfoPtr scrn = xf86ScreenToScrn(syncobj->screen);
     AMDGPUEntPtr pAMDGPUEnt = AMDGPUEntPriv(scrn);
-    struct drm_syncobj_handle handle_args;
+    struct drm_syncobj_handle handle_args = { 0 };
     int ret;
 
     (void)point;
@@ -219,7 +219,6 @@ amdgpu_dri3_syncobj_export_fence(struct dri3_syncobj *syncobj, uint64_t point)
     handle_args.handle = amdgpu_syncobj->syncobj_handle;
     handle_args.flags = DRM_SYNCOBJ_HANDLE_TO_FD_FLAGS_EXPORT_SYNC_FILE;
     handle_args.fd = -1;
-    handle_args.point = 0;
 
     ret = drmIoctl(pAMDGPUEnt->fd, DRM_IOCTL_SYNCOBJ_HANDLE_TO_FD, &handle_args);
     if (ret != 0)
@@ -248,10 +247,10 @@ amdgpu_dri3_syncobj_import_fence(struct dri3_syncobj *syncobj, uint64_t point, i
     drmIoctl(pAMDGPUEnt->fd, DRM_IOCTL_SYNCOBJ_RESET, &reset_args);
 
     /* Then import the fence fd into the syncobj */
+    memset(&handle_args, 0, sizeof(handle_args));
     handle_args.handle = amdgpu_syncobj->syncobj_handle;
     handle_args.flags = DRM_SYNCOBJ_FD_TO_HANDLE_FLAGS_IMPORT_SYNC_FILE;
     handle_args.fd = fd;
-    handle_args.point = 0;
 
     ret = drmIoctl(pAMDGPUEnt->fd, DRM_IOCTL_SYNCOBJ_FD_TO_HANDLE, &handle_args);
     (void)ret;
@@ -322,10 +321,10 @@ amdgpu_dri3_import_syncobj(ClientPtr client, ScreenPtr screen,
     if (fd >= 0) {
         struct drm_syncobj_handle handle_args;
 
+        memset(&handle_args, 0, sizeof(handle_args));
         handle_args.handle = create_args.handle;
         handle_args.flags = DRM_SYNCOBJ_FD_TO_HANDLE_FLAGS_IMPORT_SYNC_FILE;
         handle_args.fd = fd;
-        handle_args.point = 0;
 
         ret = drmIoctl(pAMDGPUEnt->fd, DRM_IOCTL_SYNCOBJ_FD_TO_HANDLE, &handle_args);
         if (ret != 0) {

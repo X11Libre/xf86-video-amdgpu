@@ -44,6 +44,84 @@
 
 #include <xf86drm.h>
 
+/**
+ * Convert legacy AMDGPU tiling_info to DRM modifier.
+ * \param tiling_info The legacy tiling info from amdgpu_bo_metadata
+ * \param asic_family The GPU family identifier
+ * \return The DRM modifier, or DRM_FORMAT_MOD_INVALID if no modifier applies
+ */
+static uint64_t
+amdgpu_tiling_info_to_modifier(uint64_t tiling_info, int asic_family)
+{
+	/* Linear buffer - no tiling */
+	if (tiling_info == 0)
+		return DRM_FORMAT_MOD_INVALID;
+
+	/* GFX12 and later use a different tiling format */
+	if (asic_family >= AMDGPU_FAMILY_GC_12_0_0) {
+		uint32_t swizzle_mode = AMDGPU_TILING_GET(tiling_info, GFX12_SWIZZLE_MODE);
+		uint64_t modifier = AMD_FMT_MOD |
+			AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX12);
+
+		switch (swizzle_mode) {
+		case 0:
+			/* LINEAR */
+			return DRM_FORMAT_MOD_INVALID;
+		case 1:
+			modifier |= AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX12_256B_2D);
+			break;
+		case 2:
+			modifier |= AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX12_4K_2D);
+			break;
+		case 3:
+			modifier |= AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX12_64K_2D);
+			break;
+		case 4:
+			modifier |= AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX12_256K_2D);
+			break;
+		default:
+			return DRM_FORMAT_MOD_INVALID;
+		}
+
+		return modifier;
+	}
+
+	/* GFX9 - GFX11: Check for 64K tiled modes */
+	if (asic_family >= AMDGPU_FAMILY_AI) {
+		uint32_t swizzle_mode = AMDGPU_TILING_GET(tiling_info, SWIZZLE_MODE);
+		uint64_t modifier;
+
+		/* Determine tile version based on family */
+		if (asic_family >= AMDGPU_FAMILY_GC_11_0_0) {
+			modifier = AMD_FMT_MOD |
+				AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11);
+		} else if (asic_family >= AMDGPU_FAMILY_NV) {
+			modifier = AMD_FMT_MOD |
+				AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX10);
+		} else {
+			modifier = AMD_FMT_MOD |
+				AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX9);
+		}
+
+		/* Map swizzle mode to tile type */
+		switch (swizzle_mode) {
+		case 9:
+			modifier |= AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_S);
+			break;
+		case 10:
+			modifier |= AMD_FMT_MOD_SET(TILE, AMD_FMT_MOD_TILE_GFX9_64K_D);
+			break;
+		default:
+			return DRM_FORMAT_MOD_INVALID;
+		}
+
+		return modifier;
+	}
+
+	/* Pre-GFX9: No modifier support for older chips */
+	return DRM_FORMAT_MOD_INVALID;
+}
+
 struct amdgpu_dri3_syncobj {
     struct dri3_syncobj base;
     uint32_t syncobj_handle;  /* DRM syncobj handle */
@@ -690,19 +768,20 @@ static int amdgpu_dri3_fds_from_pixmap(ScreenPtr screen,
 	strides[0] = pixmap->devKind;
 	offsets[0] = 0;
 
-	/* For non-GBM buffers, use the tiling info to derive the modifier.
-	 * DRM_FORMAT_MOD_INVALID indicates no modifier (linear layout).
-	 * TODO: Extract actual modifier from bo_info.metadata.tiling_info
-	 * for AMDGPU tiled surfaces. This requires mapping the legacy
-	 * tiling flags to DRM modifiers.
+	/* Extract modifier from tiling_info for non-GBM buffers,
+	 * or use GBM BO modifier for GBM buffers.
 	 */
-	*modifier = DRM_FORMAT_MOD_INVALID;
-
 	if (bo->flags & AMDGPU_BO_FLAGS_GBM) {
-		/* For GBM buffers, try to get the modifier from the GBM BO */
+		/* For GBM buffers, get the modifier from the GBM BO */
 		uint64_t gbm_modifier = gbm_bo_get_modifier(bo->bo.gbm);
-		if (gbm_modifier != DRM_FORMAT_MOD_INVALID)
-			*modifier = gbm_modifier;
+		*modifier = (gbm_modifier != DRM_FORMAT_MOD_INVALID) ?
+			gbm_modifier :
+			amdgpu_tiling_info_to_modifier(bo_info.metadata.tiling_info,
+							info->family);
+	} else {
+		/* For non-GBM buffers, derive modifier from legacy tiling info */
+		*modifier = amdgpu_tiling_info_to_modifier(
+			bo_info.metadata.tiling_info, info->family);
 	}
 
 	return 1;

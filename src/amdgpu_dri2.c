@@ -59,11 +59,15 @@ struct dri2_buffer_priv {
 	PixmapPtr pixmap;
 	unsigned int attachment;
 	unsigned int refcnt;
+	uint64_t gpu_va;
+	uint32_t tiling_info;
 };
 
 struct dri2_window_priv {
 	xf86CrtcPtr crtc;
 	int vblank_delta;
+	CARD64 last_flip_ust;
+	uint32_t flip_count;
 };
 
 static DevPrivateKeyRec dri2_window_private_key_rec;
@@ -438,6 +442,47 @@ xf86CrtcPtr amdgpu_dri2_drawable_crtc(DrawablePtr pDraw)
 	return crtc;
 }
 
+/*
+ * Get optimal flip target MSC for AMD GPUs.
+ * This function calculates the optimal target MSC for page flipping
+ * considering the AMD GPU's specific timing requirements.
+ */
+static CARD64 amdgpu_get_optimal_flip_target(ScrnInfoPtr scrn,
+						   xf86CrtcPtr crtc,
+						   CARD64 current_msc,
+						   CARD64 target_msc)
+{
+	AMDGPUInfoPtr info = AMDGPUPTR(scrn);
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	uint32_t nominal_frame_rate = drmmode_crtc->dpms_last_fps;
+
+	/* Calculate optimal flip timing based on frame rate */
+	if (nominal_frame_rate > 0 && info->allowPageFlip) {
+		/* Add small margin to ensure flip happens in the right frame */
+		CARD64 frames_ahead = 1;
+
+		if (target_msc <= current_msc)
+			target_msc = current_msc + frames_ahead;
+		else if (target_msc > current_msc + frames_ahead + 2)
+			target_msc = current_msc + frames_ahead;
+	}
+
+	return target_msc;
+}
+
+/*
+ * Update flip timing statistics for performance tracking.
+ */
+static void amdgpu_update_flip_stats(DrawablePtr draw, CARD64 ust)
+{
+	if (draw && draw->type == DRAWABLE_WINDOW) {
+		struct dri2_window_priv *priv = get_dri2_window_priv((WindowPtr)draw);
+
+		priv->last_flip_ust = ust;
+		priv->flip_count++;
+	}
+}
+
 static void
 amdgpu_dri2_flip_event_abort(xf86CrtcPtr crtc, void *event_data)
 {
@@ -494,6 +539,8 @@ amdgpu_dri2_flip_event_handler(xf86CrtcPtr crtc, uint32_t frame, uint64_t usec,
 		DRI2SwapComplete(flip->client, drawable, frame, tv_sec, tv_usec,
 				 DRI2_FLIP_COMPLETE, flip->event_complete,
 				 flip->event_data);
+		/* Update flip statistics for timing optimization */
+		amdgpu_update_flip_stats(drawable, usec);
 		break;
 	default:
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,
@@ -1179,6 +1226,10 @@ static int amdgpu_dri2_schedule_swap(ClientPtr client, DrawablePtr draw,
 	if (can_flip(crtc, draw, front, back)) {
 		swap_info->type = DRI2_FLIP;
 		flip = 1;
+		/* Apply optimal flip timing calculation for AMD GPU */
+		*target_msc = amdgpu_get_optimal_flip_target(scrn, crtc,
+									   current_msc,
+									   *target_msc);
 	}
 
 	/* Correct target_msc by 'flip' if swap_info->type == DRI2_FLIP.

@@ -2038,6 +2038,10 @@ Bool AMDGPUScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
 		if (amdgpu_glamor_init(pScreen)) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				   "Acceleration enabled\n");
+#ifdef GBM_BO_WITH_MODIFIERS
+			glamor_set_drawable_modifiers_func(pScreen,
+				                                amdgpu_dri3_get_drawable_modifiers);
+#endif
 		} else {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				   "Acceleration initialization failed\n");

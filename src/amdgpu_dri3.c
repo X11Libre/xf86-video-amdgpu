@@ -566,17 +566,28 @@ amdgpu_dri3_get_modifiers(ScreenPtr screen, uint32_t format,
 	return count;
 }
 
-static int
+static Bool
 amdgpu_dri3_get_drawable_modifiers(DrawablePtr draw, uint32_t format,
 				   uint32_t *num_modifiers, uint64_t **modifiers)
 {
-	ScrnInfoPtr scrn = xf86ScreenToScrn(draw->pScreen);
-	AMDGPUInfoPtr info = AMDGPUPTR(scrn);
+	ScrnInfoPtr scrn;
+	AMDGPUInfoPtr info;
 	uint64_t *mods;
 	uint32_t count;
 	int asic_family;
 
-	/* Get the ASIC family to determine which modifiers to advertise */
+	/* Validate input parameters */
+	if (!draw || !draw->pScreen || !num_modifiers || !modifiers)
+		return FALSE;
+
+	scrn = xf86ScreenToScrn(draw->pScreen);
+	if (!scrn)
+		return FALSE;
+
+	info = AMDGPUPTR(scrn);
+	if (!info)
+		return FALSE;
+
 	asic_family = info->family;
 
 	/* Determine which set of modifiers to return based on ASIC family.
@@ -636,15 +647,14 @@ static dri3_screen_info_rec amdgpu_dri3_screen_info = {
 	.version = 2,
 	.open = amdgpu_dri3_open,
 	.pixmap_from_fd = amdgpu_dri3_pixmap_from_fd,
-	// Version 1.1
+	/* Version 1.1 */
 	.fd_from_pixmap = amdgpu_dri3_fd_from_pixmap,
-	// Version 1.2
+	/* Version 1.2 */
 	.pixmap_from_fds = amdgpu_dri3_pixmap_from_fds,
 	.fds_from_pixmap = amdgpu_dri3_fds_from_pixmap,
 	.get_formats = amdgpu_dri3_get_formats,
-	.get_modifiers = amdgpu_dri3_get_modifiers,
-	.get_drawable_modifiers = amdgpu_dri3_get_drawable_modifiers
-	// Version 1.4
+	.get_modifiers = amdgpu_dri3_get_modifiers
+	/* Version 1.4 - get_drawable_modifiers set via glamor callback */
 };
 
 Bool

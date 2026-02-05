@@ -80,4 +80,12 @@ extern int glamor_fds_from_pixmap(ScreenPtr screen, PixmapPtr pixmap, int *fds,
                                   uint64_t *modifier);
 #endif
 
+/* DRI3 drawable modifiers callback */
+#ifdef GBM_BO_WITH_MODIFIERS
+extern Bool amdgpu_dri3_get_drawable_modifiers(DrawablePtr draw,
+                                               uint32_t format,
+                                               uint32_t *num_modifiers,
+                                               uint64_t **modifiers);
+#endif
+
 #endif /* AMDGPU_GLAMOR_H */

@@ -60,6 +60,7 @@ amdgpu_tiling_info_to_modifier(uint64_t tiling_info, int asic_family)
 
 	/* GFX12 and later use a different tiling format */
 	if (asic_family >= AMDGPU_FAMILY_GC_12_0_0) {
+#ifdef HAVE_AMD_FMT_MOD_TILE_VER_GFX12
 		uint32_t swizzle_mode = AMDGPU_TILING_GET(tiling_info, GFX12_SWIZZLE_MODE);
 		uint64_t modifier = AMD_FMT_MOD |
 			AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX12);
@@ -85,6 +86,10 @@ amdgpu_tiling_info_to_modifier(uint64_t tiling_info, int asic_family)
 		}
 
 		return modifier;
+#else
+		/* GFX12 not supported by this libdrm version */
+		return DRM_FORMAT_MOD_INVALID;
+#endif
 	}
 
 	/* GFX9 - GFX11: Check for 64K tiled modes */
@@ -864,6 +869,7 @@ amdgpu_dri3_get_modifiers(ScreenPtr screen, uint32_t format,
 		AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX10 |
 			AMD_FMT_MOD_TILE_GFX9_64K_D,
 	};
+#ifdef HAVE_AMD_FMT_MOD_TILE_VER_GFX12
 	static uint64_t amd_tiled_modifiers_gfx12[] = {
 		/* LINEAR - no tiling */
 		DRM_FORMAT_MOD_INVALID,
@@ -871,6 +877,7 @@ amdgpu_dri3_get_modifiers(ScreenPtr screen, uint32_t format,
 		AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX12 |
 			AMD_FMT_MOD_TILE_GFX12_64K_2D,
 	};
+#endif
 	uint64_t *mods;
 	uint32_t count;
 	int asic_family;
@@ -880,8 +887,14 @@ amdgpu_dri3_get_modifiers(ScreenPtr screen, uint32_t format,
 
 	/* Determine which set of modifiers to return based on ASIC family */
 	if (asic_family >= AMDGPU_FAMILY_GC_12_0_0) {
+#ifdef HAVE_AMD_FMT_MOD_TILE_VER_GFX12
 		mods = amd_tiled_modifiers_gfx12;
 		count = sizeof(amd_tiled_modifiers_gfx12) / sizeof(amd_tiled_modifiers_gfx12[0]);
+#else
+		/* GFX12 not supported, fall back to GFX10 modifiers */
+		mods = amd_tiled_modifiers_gfx10;
+		count = sizeof(amd_tiled_modifiers_gfx10) / sizeof(amd_tiled_modifiers_gfx10[0]);
+#endif
 	} else if (asic_family >= AMDGPU_FAMILY_NV) {
 		/* Navi and newer (GFX10+) */
 		mods = amd_tiled_modifiers_gfx10;
@@ -935,6 +948,7 @@ amdgpu_dri3_get_drawable_modifiers(DrawablePtr draw, uint32_t format,
 	 * For drawables, we return the same modifiers as screen-level modifiers.
 	 */
 	if (asic_family >= AMDGPU_FAMILY_GC_12_0_0) {
+#ifdef HAVE_AMD_FMT_MOD_TILE_VER_GFX12
 		static uint64_t gfx12_mods[] = {
 			DRM_FORMAT_MOD_INVALID,
 			AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX12 |
@@ -942,6 +956,12 @@ amdgpu_dri3_get_drawable_modifiers(DrawablePtr draw, uint32_t format,
 		};
 		mods = gfx12_mods;
 		count = sizeof(gfx12_mods) / sizeof(gfx12_mods[0]);
+#else
+		/* GFX12 not supported, fall back to invalid modifier */
+		static uint64_t invalid_mods[] = { DRM_FORMAT_MOD_INVALID };
+		mods = invalid_mods;
+		count = 1;
+#endif
 	} else if (asic_family >= AMDGPU_FAMILY_NV) {
 		/* Navi and newer (GFX10+) */
 		static uint64_t gfx10_mods[] = {

@@ -134,6 +134,15 @@ AC_CHECK_DECL(GBM_BO_USE_FRONT_RENDERING,
 
 CPPFLAGS="$SAVE_CPPFLAGS"
 
+# Check for GFX12 tile version support in libdrm
+SAVE_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $LIBDRM_CFLAGS"
+AC_CHECK_DECLS([AMD_FMT_MOD_TILE_VER_GFX12, AMD_FMT_MOD_TILE_GFX12_256B_2D, AMD_FMT_MOD_TILE_GFX12_4K_2D, AMD_FMT_MOD_TILE_GFX12_64K_2D, AMD_FMT_MOD_TILE_GFX12_256K_2D],
+    [AC_DEFINE(HAVE_AMD_FMT_MOD_TILE_GFX12, 1, [libdrm has GFX12 tile support])],
+    [AC_MSG_WARN([Some GFX12 tile constants missing - disabling GFX12 support])],
+    [#include <drm_fourcc.h>])
+CPPFLAGS="$SAVE_CPPFLAGS"
+
 AC_CONFIG_FILES([Makefile src/Makefile man/Makefile conf/Makefile])
 AC_OUTPUT
 

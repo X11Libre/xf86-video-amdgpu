@@ -34,8 +34,10 @@ AMDGPU_KMS_SRCS=amdgpu_bo_helper.c amdgpu_dri2.c amdgpu_dri3.c amdgpu_drm_queue.
 AM_CFLAGS = \
             @GBM_CFLAGS@ \
             @LIBDRM_AMDGPU_CFLAGS@ \
+            @LIBDRM_CFLAGS@ \
             @XORG_CFLAGS@ \
-            @LIBUDEV_CFLAGS@
+            @LIBUDEV_CFLAGS@ \
+            $(DRM_SUBDIR_INCDIR)
 
 if LIBUDEV
 amdgpu_drv_la_LIBADD += $(LIBUDEV_LIBS)

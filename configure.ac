@@ -68,6 +68,24 @@ PKG_CHECK_MODULES(LIBDRM, [libdrm >= 2.4.121])
 PKG_CHECK_MODULES(LIBDRM_AMDGPU, [libdrm_amdgpu >= 2.4.121])
 PKG_CHECK_MODULES(GBM, [gbm])
 
+# Check for DRM header location (Linux uses drm/ subdirectory, BSD may not)
+SAVE_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $LIBDRM_CFLAGS $LIBDRM_AMDGPU_CFLAGS"
+# Check for headers with and without drm/ subdirectory
+AC_CHECK_HEADERS([drm_fourcc.h amdgpu_drm.h],
+    [found_drm_headers=yes],
+    [found_drm_headers=no])
+if test "x$found_drm_headers" = "xno"; then
+    # Fallback: check in drm/ subdirectory
+    AC_CHECK_HEADERS([drm/drm_fourcc.h drm/amdgpu_drm.h],
+        [found_drm_headers=yes
+         # Need to add -I flag for drm/ subdirectory
+         drm_incdir="-I\${includedir}/drm"
+         AC_SUBST(DRM_SUBDIR_INCDIR, ["$drm_incdir"])],
+        [AC_MSG_ERROR([libdrm headers not found - libdrm required])])
+fi
+CPPFLAGS="$SAVE_CPPFLAGS"
+
 # Obtain compiler/linker options for the driver dependencies
 PKG_CHECK_MODULES(XORG, [xorg-server >= 25.0.0 xproto fontsproto xf86driproto randrproto renderproto xextproto >= 7.0.99.1 $REQUIRED_MODULES])
 

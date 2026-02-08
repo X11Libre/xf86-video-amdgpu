@@ -15,6 +15,20 @@ srcs = [
   'drmmode_display.c',
 ]
 
+# Check for DRM header location (Linux uses drm/ subdirectory, BSD may not)
+drm_args = []
+drm_incdir = libdrm_dep.get_variable(pkgconfig: 'includedir')
+if meson.get_compiler('c').has_header('drm_fourcc.h') and \
+   meson.get_compiler('c').has_header('amdgpu_drm.h')
+  # Headers found without drm/ subdirectory (BSD)
+elif meson.get_compiler('c').has_header('drm/drm_fourcc.h') and \
+     meson.get_compiler('c').has_header('drm/amdgpu_drm.h')
+  # Headers found with drm/ subdirectory (Linux)
+  drm_args = ['-I' + drm_incdir]
+else
+  error('libdrm headers not found - libdrm required')
+endif
+
 amdgpu_drv_libs = [
   fontsproto_dep,
   gbm_dep,
@@ -37,6 +51,7 @@ shared_module(
   srcs,
   include_directories: include_directories('..'),
   dependencies: amdgpu_drv_libs,
+  c_args: drm_args,
   install: true,
   install_dir: join_paths(moduledir, 'drivers'),
   name_prefix: '',

@@ -36,8 +36,8 @@
 #include <errno.h>
 #include <libgen.h>
 #include <string.h>
-#include <drm/drm_fourcc.h>
-#include <drm/amdgpu_drm.h>
+#include <drm_fourcc.h>
+#include <amdgpu_drm.h>
 #include <unistd.h>
 #include <poll.h>
 

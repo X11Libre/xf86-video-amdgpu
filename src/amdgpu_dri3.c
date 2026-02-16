@@ -829,10 +829,15 @@ amdgpu_dri3_get_formats(ScreenPtr screen, unsigned int *num_formats,
 		DRM_FORMAT_RGB332,
 		DRM_FORMAT_BGR233,
 	};
+	unsigned int count = sizeof(formats_arr) / sizeof(formats_arr[0]);
 
-	*num_formats = sizeof(formats_arr) / sizeof(formats_arr[0]);
-	*formats = (unsigned int *)formats_arr;
-	return sizeof(formats_arr) / sizeof(formats_arr[0]);
+	*formats = malloc(count * sizeof(uint32_t));
+	if (!*formats)
+		return 0;
+
+	memcpy(*formats, formats_arr, count * sizeof(uint32_t));
+	*num_formats = count;
+	return count;
 }
 
 /*

@@ -1,7 +1,7 @@
 project(
   'xf86-video-amdgpu',
   'c',
-  version: '25.1.0',
+  version: '25.1.1',
   license: 'MIT',
   meson_version: '>=0.59.0',
   default_options: ['warning_level=1']

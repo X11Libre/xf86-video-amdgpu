@@ -44,6 +44,7 @@
 #include "amdgpu_bo_helper.h"
 #include "amdgpu_glamor.h"
 #include "amdgpu_pixmap.h"
+#include "amdgpu_video.h"
 
 #include <X11/extensions/dpmsconst.h>
 
@@ -210,6 +211,9 @@ int drmmode_crtc_get_ust_msc(xf86CrtcPtr crtc, CARD64 *ust, CARD64 *msc)
 {
 	ScrnInfoPtr scrn = crtc->scrn;
 	uint32_t seq;
+
+	if (!amdgpu_crtc_is_enabled(crtc))
+		return -1;
 
 	if (!drmmode_wait_vblank(crtc, DRM_VBLANK_RELATIVE, 0, 0, ust, &seq)) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,

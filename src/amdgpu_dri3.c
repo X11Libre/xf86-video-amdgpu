@@ -925,7 +925,9 @@ amdgpu_dri3_get_modifiers(ScreenPtr screen, uint32_t format,
 	return count;
 }
 
-static Bool
+#ifdef GBM_BO_WITH_MODIFIERS
+
+Bool
 amdgpu_dri3_get_drawable_modifiers(DrawablePtr draw, uint32_t format,
 				   uint32_t *num_modifiers, uint64_t **modifiers)
 {
@@ -1008,6 +1010,7 @@ amdgpu_dri3_get_drawable_modifiers(DrawablePtr draw, uint32_t format,
 
 	return TRUE;
 }
+#endif /* GBM_BO_WITH_MODIFIERS */
 
 static dri3_screen_info_rec amdgpu_dri3_screen_info = {
 	.version = 4,

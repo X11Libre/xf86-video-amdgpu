@@ -44,7 +44,7 @@ XORG_DEFAULT_OPTIONS
 
 # Initialize libtool
 AC_DISABLE_STATIC
-AC_PROG_LIBTOOL
+LT_INIT
 
 # Checks for programs.
 AM_PROG_CC_C_O

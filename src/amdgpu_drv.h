@@ -78,6 +78,9 @@
 #include "drmmode_display.h"
 #include "amdgpu_bo_helper.h"
 
+#include "glamor.h"
+#include "shadow.h"
+
 struct _SyncFence;
 
 #ifndef MAX
@@ -285,6 +288,54 @@ typedef struct {
 		SharePixmapBackingProcPtr SavedSharePixmapBacking;
 		SetSharedPixmapBackingProcPtr SavedSetSharedPixmapBacking;
 	} glamor;
+
+    /* glamor API */
+    struct {
+
+        PixmapPtr (*create_pixmap) (ScreenPtr,int,int, int, unsigned int);
+
+        Bool (*back_pixmap_from_fd)(PixmapPtr, int, CARD16, CARD16, CARD16,
+                                    CARD8, CARD8);
+        void (*block_handler)(ScreenPtr);
+        /* void (*clear_pixmap)(PixmapPtr); */
+        Bool (*egl_create_textured_pixmap)(PixmapPtr, int, int);
+        Bool (*egl_create_textured_pixmap_from_gbm_bo)(PixmapPtr,
+                                                       struct gbm_bo *,
+                                                       Bool);
+        void (*egl_exchange_buffers)(PixmapPtr, PixmapPtr);
+        struct gbm_device *(*egl_get_gbm_device)(ScreenPtr);
+        Bool (*egl_init)(ScrnInfoPtr, int);
+        void (*finish)(ScreenPtr);
+        /* struct gbm_bo *(*gbm_bo_from_pixmap)(ScreenPtr, PixmapPtr); */
+        Bool (*init)(ScreenPtr, unsigned int);
+        /* int (*name_from_pixmap)(PixmapPtr, CARD16 *, CARD32 *); */
+        /* void (*set_drawable_modifiers_func)(ScreenPtr,
+                                            GetDrawableModifiersFuncPtr); */
+        /* int (*shareable_fd_from_pixmap)(ScreenPtr, PixmapPtr, CARD16 *,
+                                        CARD32 *); */
+        /* Bool (*supports_pixmap_import_export)(ScreenPtr); */
+        XF86VideoAdaptorPtr (*xv_init)(ScreenPtr, int);
+        /* const char *(*egl_get_driver_name)(ScreenPtr); */
+
+        int (*fd_from_pixmap)(ScreenPtr, PixmapPtr, CARD16 *, CARD32 *);
+        void (*validate_gc)  (GCPtr, unsigned long, DrawablePtr);
+
+        /* PixmapPtr (*pixmap_from_fds)(ScreenPtr, CARD8,const int *,CARD16,CARD16,const CARD32 *,const CARD32 *,CARD8,CARD8,uint64_t); */
+        PixmapPtr (*pixmap_from_fd)(ScreenPtr,int,CARD16,CARD16,CARD16,CARD8,CARD8);
+
+
+    } glamor_abi;
+
+    /* shadow API */
+    struct {
+        Bool (*Setup)(ScreenPtr);
+        Bool (*Add)(ScreenPtr, PixmapPtr, ShadowUpdateProc, ShadowWindowProc,
+                    int, void *);
+        /* void (*Remove)(ScreenPtr, PixmapPtr); */
+        /* void (*Update32to24)(ScreenPtr, shadowBufPtr); */
+        void (*UpdatePacked)(ScreenPtr, shadowBufPtr);
+    } shadow_abi;
+
 
 	xf86CrtcFuncsRec drmmode_crtc_funcs;
 } AMDGPUInfoRec, *AMDGPUInfoPtr;

@@ -50,10 +50,14 @@
 #include <X11/extensions/dpmsconst.h>
 #include <X11/extensions/damageproto.h>
 
+#include "glamor.h"
+
 #include "amdgpu_bo_helper.h"
 #include "amdgpu_pixmap.h"
 
+
 #include <gbm.h>
+
 
 static DevPrivateKeyRec amdgpu_window_private_key;
 static DevScreenPrivateKeyRec amdgpu_client_private_key;
@@ -64,6 +68,8 @@ static Bool amdgpu_property_vectors_wrapped;
 static Bool restore_property_vector;
 static int (*saved_change_property) (ClientPtr client);
 static int (*saved_delete_property) (ClientPtr client);
+
+static bool load_glamor(ScrnInfoPtr pScrn);
 
 static Bool amdgpu_setup_kernel_mem(ScreenPtr pScreen);
 
@@ -299,7 +305,10 @@ static void *amdgpuShadowWindow(ScreenPtr screen, CARD32 row, CARD32 offset,
 static void
 amdgpuUpdatePacked(ScreenPtr pScreen, shadowBufPtr pBuf)
 {
-	shadowUpdatePacked(pScreen, pBuf);
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
+    AMDGPUInfoPtr info = AMDGPUPTR(pScrn);
+
+    info->shadow_abi.UpdatePacked(pScreen, pBuf);
 }
 
 static Bool
@@ -392,7 +401,7 @@ static Bool AMDGPUCreateScreenResources_KMS(ScreenPtr pScreen)
 	if (info->shadow_fb) {
 		pixmap = pScreen->GetScreenPixmap(pScreen);
 
-		if (!shadowAdd(pScreen, pixmap, amdgpuUpdatePacked,
+        if (!info->shadow_abi.Add(pScreen, pixmap, amdgpuUpdatePacked,
 			       amdgpuShadowWindow, 0, NULL))
 			return FALSE;
 	}
@@ -1328,6 +1337,15 @@ static Bool AMDGPUPreInitAccel_KMS(ScrnInfoPtr pScrn)
 		info->dri2.available = ! !xf86LoadSubModule(pScrn, "dri2");
 #endif
 
+                if (use_glamor) {
+                    if (!load_glamor(pScrn)){
+                        use_glamor = FALSE;
+
+			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+					   "amdgpu_glamor_pre_init failed "
+					   "to load glamor submodule\n");
+		    }
+		}
 		if (info->dri2.available)
 			info->gbm = gbm_create_device(pAMDGPUEnt->fd);
 
@@ -1896,6 +1914,69 @@ static Bool AMDGPUCloseScreen_KMS(ScreenPtr pScreen)
 	return pScreen->CloseScreen(pScreen);
 }
 
+/**
+ * @brief load_glamor load glamor functions
+ * @param pScrn
+ */
+static bool
+load_glamor(ScrnInfoPtr pScrn)
+{
+    void *mod = xf86LoadSubModule(pScrn, "glamoregl");
+    AMDGPUInfoPtr info = AMDGPUPTR(pScrn);
+
+
+    if (!mod)
+        return false;
+
+    info->glamor_abi.create_pixmap = LoaderSymbolFromModule(mod,"glamor_create_pixmap");
+    info->glamor_abi.back_pixmap_from_fd = LoaderSymbolFromModule(mod, "glamor_back_pixmap_from_fd");
+    info->glamor_abi.block_handler = LoaderSymbolFromModule(mod, "glamor_block_handler");
+    /* info->glamor_abi.clear_pixmap = LoaderSymbolFromModule(mod, "glamor_clear_pixmap"); */
+    info->glamor_abi.egl_create_textured_pixmap = LoaderSymbolFromModule(mod, "glamor_egl_create_textured_pixmap");
+    info->glamor_abi.egl_create_textured_pixmap_from_gbm_bo = LoaderSymbolFromModule(mod, "glamor_egl_create_textured_pixmap_from_gbm_bo");
+    info->glamor_abi.egl_exchange_buffers = LoaderSymbolFromModule(mod, "glamor_egl_exchange_buffers"); 
+    info->glamor_abi.egl_get_gbm_device = LoaderSymbolFromModule(mod, "glamor_egl_get_gbm_device");
+    info->glamor_abi.egl_init = LoaderSymbolFromModule(mod, "glamor_egl_init");
+    info->glamor_abi.finish = LoaderSymbolFromModule(mod, "glamor_finish");
+    /*
+    info->glamor_abi.gbm_bo_from_pixmap = LoaderSymbolFromModule(mod, "glamor_gbm_bo_from_pixmap");
+    */
+    info->glamor_abi.init = LoaderSymbolFromModule(mod, "glamor_init");
+    /*
+    info->glamor_abi.name_from_pixmap = LoaderSymbolFromModule(mod, "glamor_name_from_pixmap");
+    info->glamor_abi.set_drawable_modifiers_func = LoaderSymbolFromModule(mod, "glamor_set_drawable_modifiers_func");
+    info->glamor_abi.shareable_fd_from_pixmap = LoaderSymbolFromModule(mod, "glamor_shareable_fd_from_pixmap");
+    info->glamor_abi.supports_pixmap_import_export = LoaderSymbolFromModule(mod, "glamor_supports_pixmap_import_export");
+    info->glamor_abi.egl_get_driver_name = LoaderSymbolFromModule(mod, "glamor_egl_get_driver_name");
+     */
+    info->glamor_abi.xv_init = LoaderSymbolFromModule(mod, "glamor_xv_init");
+    info->glamor_abi.fd_from_pixmap = LoaderSymbolFromModule(mod, "glamor_fd_from_pixmap");
+    info->glamor_abi.validate_gc = LoaderSymbolFromModule(mod, "glamor_validate_gc");
+    return TRUE;
+}
+
+static bool
+load_shadowfd(ScrnInfoPtr pScrn){
+
+    void *mod = xf86LoadSubModule(pScrn, "shadow");
+    AMDGPUInfoPtr info = AMDGPUPTR(pScrn);
+
+    if (!mod){
+        return false;
+    }
+
+    info->shadow_abi.Setup        = LoaderSymbolFromModule(mod, "shadowSetup");
+    info->shadow_abi.Add          = LoaderSymbolFromModule(mod, "shadowAdd");
+    /*
+    info->shadow_abi.Remove       = LoaderSymbolFromModule(mod, "shadowRemove");
+    info->shadow_abi.Update32to24 = LoaderSymbolFromModule(mod, "shadowUpdate32to24");
+     */
+    info->shadow_abi.UpdatePacked = LoaderSymbolFromModule(mod, "shadowUpdatePacked");
+
+    return true;
+}
+
+
 void AMDGPUFreeScreen_KMS(ScrnInfoPtr pScrn)
 {
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, AMDGPU_LOGLEVEL_DEBUG,
@@ -2038,8 +2119,9 @@ Bool AMDGPUScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
 		if (amdgpu_glamor_init(pScreen)) {
 			xf86DrvMsg(pScrn->scrnIndex, X_INFO,
 				   "Acceleration enabled\n");
+
 #ifdef GBM_BO_WITH_MODIFIERS
-			glamor_set_drawable_modifiers_func(pScreen,
+            info->glamor_abi.set_drawable_modifiers_func(pScreen,
 				                                amdgpu_dri3_get_drawable_modifiers);
 #endif
 		} else {
@@ -2080,7 +2162,13 @@ Bool AMDGPUScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
 	}
 
 	if (info->shadow_fb == TRUE) {
-		if (!shadowSetup(pScreen)) {
+        if (!load_shadowfd(pScrn)){
+            xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
+                       "Shadowfb submodule initialization failed\n");
+            return FALSE;
+
+        }
+        if (!info->shadow_abi.Setup(pScreen)) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				   "Shadowfb initialization failed\n");
 			return FALSE;

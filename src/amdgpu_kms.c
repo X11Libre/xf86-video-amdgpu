@@ -454,10 +454,10 @@ amdgpu_scanout_extents_intersect(xf86CrtcPtr xf86_crtc, BoxPtr extents)
 		pixman_f_transform_bounds(&xf86_crtc->f_framebuffer_to_crtc, extents);
 	}
 
-	extents->x1 = max(extents->x1, 0);
-	extents->y1 = max(extents->y1, 0);
-	extents->x2 = min(extents->x2, xf86_crtc->mode.HDisplay);
-	extents->y2 = min(extents->y2, xf86_crtc->mode.VDisplay);
+	extents->x1 = MAX(extents->x1, 0);
+	extents->y1 = MAX(extents->y1, 0);
+	extents->x2 = MIN(extents->x2, xf86_crtc->mode.HDisplay);
+	extents->y2 = MIN(extents->y2, xf86_crtc->mode.VDisplay);
 
 	return (extents->x1 < extents->x2 && extents->y1 < extents->y2);
 }
@@ -481,10 +481,10 @@ transform_region(RegionPtr region, struct pixman_f_transform *transform,
 		box.y2 = boxes[i].y2;
 		pixman_f_transform_bounds(transform, &box);
 
-		box.x1 = max(box.x1, 0);
-		box.y1 = max(box.y1, 0);
-		box.x2 = min(box.x2, w);
-		box.y2 = min(box.y2, h);
+		box.x1 = MAX(box.x1, 0);
+		box.y1 = MAX(box.y1, 0);
+		box.x2 = MIN(box.x2, w);
+		box.y2 = MIN(box.y2, h);
 		if (box.x1 >= box.x2 || box.y1 >= box.y2)
 			continue;
 
@@ -2242,8 +2242,8 @@ void AMDGPULeaveVT_KMS(ScrnInfoPtr pScrn)
 			if (!drmmode_crtc->fb)
 				continue;
 
-			w = max(w, crtc->mode.HDisplay);
-			h = max(h, crtc->mode.VDisplay);
+			w = MAX(w, crtc->mode.HDisplay);
+			h = MAX(h, crtc->mode.VDisplay);
 		}
 
 		/* Make all active CRTCs scan out from an all-black framebuffer */

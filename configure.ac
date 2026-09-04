@@ -28,6 +28,7 @@ AC_INIT([xlibre-xf86-video-amdgpu],
         [xlibre-xf86-video-amdgpu])
 
 AC_CONFIG_SRCDIR([Makefile.am])
+AC_USE_SYSTEM_EXTENSIONS
 AC_CONFIG_HEADERS([config.h])
 AC_CONFIG_MACRO_DIR([m4])
 

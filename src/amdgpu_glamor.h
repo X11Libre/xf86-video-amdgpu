@@ -73,12 +73,7 @@ PixmapPtr amdgpu_glamor_set_pixmap_bo(DrawablePtr drawable, PixmapPtr pixmap);
 
 XF86VideoAdaptorPtr amdgpu_glamor_xv_init(ScreenPtr pScreen, int num_adapt);
 
-/* glamor_fds_from_pixmap declaration - only available when DRI3 is enabled */
-#ifndef GLAMOR_NO_DRI3
-extern int glamor_fds_from_pixmap(ScreenPtr screen, PixmapPtr pixmap, int *fds,
-                                  uint32_t *strides, uint32_t *offsets,
-                                  uint64_t *modifier);
-#endif
+
 
 /* DRI3 drawable modifiers callback */
 #ifdef GBM_BO_WITH_MODIFIERS

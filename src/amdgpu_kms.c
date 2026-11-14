@@ -43,7 +43,6 @@
 
 #include "amdgpu_version.h"
 #include "shadow.h"
-#include <xf86Priv.h>
 
 #include <present.h>
 

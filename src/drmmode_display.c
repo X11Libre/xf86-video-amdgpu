@@ -35,9 +35,7 @@
 #include "inputstr.h"
 #include "list.h"
 #include "micmap.h"
-#include "mipointrst.h"
 #include "xf86cmap.h"
-#include "xf86Priv.h"
 #include <xf86drm.h>
 
 #include "drmmode_display.h"

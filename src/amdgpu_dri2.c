@@ -48,7 +48,6 @@
 #include "amdgpu_version.h"
 
 #include <list.h>
-#include <xf86Priv.h>
 #include <X11/extensions/dpmsconst.h>
 
 #define FALLBACK_SWAP_DELAY 16

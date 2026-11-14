@@ -209,7 +209,7 @@ Bool amdgpu_pixmap_get_handle(PixmapPtr pixmap, uint32_t *handle)
 		CARD32 size;
 		int fd, r;
 
-		fd = glamor_fd_from_pixmap(screen, pixmap, &stride, &size);
+        fd = info->glamor_abi.fd_from_pixmap(screen, pixmap, &stride, &size);
 		if (fd < 0)
 			return FALSE;
 

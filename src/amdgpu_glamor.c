@@ -42,7 +42,7 @@ void amdgpu_glamor_exchange_buffers(PixmapPtr src, PixmapPtr dst)
 
 	if (!info->use_glamor)
 		return;
-	glamor_egl_exchange_buffers(src, dst);
+	info->glamor_abi.egl_exchange_buffers(src, dst);
 }
 
 Bool amdgpu_glamor_create_screen_resources(ScreenPtr screen)
@@ -72,7 +72,7 @@ Bool amdgpu_glamor_pre_init(ScrnInfoPtr scrn)
 	}
 
 	/* Load glamor module */
-	if ((glamor_module = xf86LoadSubModule(scrn, GLAMOR_EGL_MODULE_NAME))) {
+    if ((glamor_module = xf86LoadSubModule(scrn, "glamoregl"))) {
 		version = xf86GetModuleVersion(glamor_module);
 		if (version < MODULE_VERSION_NUMERIC(0, 3, 1)) {
 			xf86DrvMsg(scrn->scrnIndex, X_ERROR,
@@ -89,7 +89,7 @@ Bool amdgpu_glamor_pre_init(ScrnInfoPtr scrn)
 				return FALSE;
 			}
 
-			if (glamor_egl_init(scrn, pAMDGPUEnt->fd)) {
+            if (info->glamor_abi.egl_init(scrn, pAMDGPUEnt->fd)) {
 				xf86DrvMsg(scrn->scrnIndex, X_INFO,
 					   "glamor detected, initialising EGL layer.\n");
 			} else {
@@ -118,7 +118,7 @@ amdgpu_glamor_create_textured_pixmap(PixmapPtr pixmap, struct amdgpu_buffer *bo)
 		return TRUE;
 
 	if (bo->flags & AMDGPU_BO_FLAGS_GBM) {
-		return glamor_egl_create_textured_pixmap_from_gbm_bo(pixmap,
+        return info->glamor_abi.egl_create_textured_pixmap_from_gbm_bo(pixmap,
 								     bo->bo.gbm,
 								     FALSE);
 	} else {
@@ -127,7 +127,7 @@ amdgpu_glamor_create_textured_pixmap(PixmapPtr pixmap, struct amdgpu_buffer *bo)
 		if (!amdgpu_bo_get_handle(bo, &bo_handle))
 			return FALSE;
 
-		return glamor_egl_create_textured_pixmap(pixmap, bo_handle,
+        return info->glamor_abi.egl_create_textured_pixmap(pixmap, bo_handle,
 							 pixmap->devKind);
 	}
 }
@@ -188,7 +188,7 @@ amdgpu_glamor_create_pixmap(ScreenPtr screen, int w, int h, int depth,
 			usage |= AMDGPU_CREATE_PIXMAP_LINEAR |
 				 AMDGPU_CREATE_PIXMAP_GTT;
 		} else if (usage != CREATE_PIXMAP_USAGE_BACKING_PIXMAP) {
-			pixmap = glamor_create_pixmap(screen, w, h, depth, usage);
+			pixmap = info->glamor_abi.create_pixmap(screen, w, h, depth, usage);
 			if (pixmap)
 				return pixmap;
 		}
@@ -253,7 +253,7 @@ fallback_glamor:
 	 * texture only pixmap and will never fallback to DDX layer
 	 * afterwards.
 	 */
-	new_pixmap = glamor_create_pixmap(screen, w, h, depth, usage);
+	new_pixmap = info->glamor_abi.create_pixmap(screen, w, h, depth, usage);
 	amdgpu_bo_unref(&priv->bo);
 fallback_priv:
 	free(priv);
@@ -271,6 +271,10 @@ amdgpu_glamor_set_pixmap_bo(DrawablePtr drawable, PixmapPtr pixmap)
 	PixmapPtr old = get_drawable_pixmap(drawable);
 	ScreenPtr screen = drawable->pScreen;
 	struct amdgpu_pixmap *priv = amdgpu_get_pixmap_private(pixmap);
+
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+        AMDGPUInfoPtr info = AMDGPUPTR(scrn);
+
 	GCPtr gc;
 
 	/* With a glamor pixmap, 2D pixmaps are created in texture
@@ -297,7 +301,7 @@ amdgpu_glamor_set_pixmap_bo(DrawablePtr drawable, PixmapPtr pixmap)
 	}
 
 	/* And redirect the pixmap to the new bo (for 3D). */
-	glamor_egl_exchange_buffers(old, pixmap);
+	info->glamor_abi.egl_exchange_buffers(old, pixmap);
 	amdgpu_set_pixmap_private(pixmap, amdgpu_get_pixmap_private(old));
 	amdgpu_set_pixmap_private(old, priv);
 
@@ -358,7 +362,7 @@ amdgpu_glamor_share_pixmap_backing(PixmapPtr pixmap, ScreenPtr secondary,
 		amdgpu_glamor_set_pixmap_bo(&pixmap->drawable, linear);
 	}
 
-	fd = glamor_fd_from_pixmap(screen, pixmap, &stride, &size);
+	fd = info->glamor_abi.fd_from_pixmap(screen, pixmap, &stride, &size);
 	if (fd < 0)
 		return FALSE;
 
@@ -413,7 +417,7 @@ Bool amdgpu_glamor_init(ScreenPtr screen)
 		}
 	}
 
-	if (!glamor_init(screen, GLAMOR_USE_EGL_SCREEN | GLAMOR_USE_SCREEN |
+    if (!info->glamor_abi.init(screen, GLAMOR_USE_EGL_SCREEN | GLAMOR_USE_SCREEN |
 			 GLAMOR_USE_PICTURE_SCREEN | GLAMOR_INVERTED_Y_AXIS |
 			 GLAMOR_NO_DRI3)) {
 		xf86DrvMsg(scrn->scrnIndex, X_ERROR,
@@ -452,7 +456,7 @@ void amdgpu_glamor_flush(ScrnInfoPtr pScrn)
 	AMDGPUInfoPtr info = AMDGPUPTR(pScrn);
 
 	if (info->use_glamor) {
-		glamor_block_handler(pScrn->pScreen);
+        info->glamor_abi.block_handler(pScrn->pScreen);
 	}
 
 	info->gpu_flushed++;
@@ -463,7 +467,7 @@ void amdgpu_glamor_finish(ScrnInfoPtr pScrn)
 	AMDGPUInfoPtr info = AMDGPUPTR(pScrn);
 
 	if (info->use_glamor) {
-		glamor_finish(pScrn->pScreen);
+        info->glamor_abi.finish(pScrn->pScreen);
 		info->gpu_flushed++;
 	}
 }
@@ -484,5 +488,7 @@ amdgpu_glamor_fini(ScreenPtr screen)
 
 XF86VideoAdaptorPtr amdgpu_glamor_xv_init(ScreenPtr pScreen, int num_adapt)
 {
-	return glamor_xv_init(pScreen, num_adapt);
+    ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
+    AMDGPUInfoPtr info = AMDGPUPTR(pScrn);
+    return info->glamor_abi.xv_init(pScreen, num_adapt);
 }

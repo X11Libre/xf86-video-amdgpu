@@ -468,10 +468,11 @@ static PixmapPtr amdgpu_dri3_pixmap_from_fd(ScreenPtr screen,
 					    CARD8 bpp)
 {
 	PixmapPtr pixmap;
+    AMDGPUInfoPtr info = AMDGPUPTR(xf86ScreenToScrn(screen));
 
 	/* Avoid generating a GEM flink name if possible */
-	if (AMDGPUPTR(xf86ScreenToScrn(screen))->use_glamor) {
-		pixmap = glamor_pixmap_from_fd(screen, fd, width, height,
+    if (info->use_glamor) {
+        pixmap =  info->glamor_abi.pixmap_from_fd(screen, fd, width, height,
 					       stride, depth, bpp);
 		if (pixmap) {
 			struct amdgpu_pixmap *priv = calloc(1, sizeof(*priv));
@@ -564,8 +565,8 @@ static PixmapPtr amdgpu_dri3_pixmap_from_fds(ScreenPtr screen,
 	if (!info->use_glamor)
 		goto non_glamor_path;
 
-	/* glamor path: use GBM to import multi-plane buffers */
-	gbm = glamor_egl_get_gbm_device(screen);
+    /* glamor path: use GBM to import multi-plane buffers */
+    gbm = info->glamor_abi.egl_get_gbm_device(screen);
 	if (!gbm)
 		goto non_glamor_path;
 
@@ -615,7 +616,7 @@ static PixmapPtr amdgpu_dri3_pixmap_from_fds(ScreenPtr screen,
 
 	if (bo) {
 		screen->ModifyPixmapHeader(pixmap, width, height, 0, 0, strides[0], NULL);
-		ret = glamor_egl_create_textured_pixmap_from_gbm_bo(pixmap, bo, FALSE);
+        ret = info->glamor_abi.egl_create_textured_pixmap_from_gbm_bo(pixmap, bo, FALSE);
 		gbm_bo_destroy(bo);
 		if (ret) {
 			struct amdgpu_pixmap *priv = calloc(1, sizeof(*priv));
@@ -684,7 +685,7 @@ static int amdgpu_dri3_fd_from_pixmap(ScreenPtr screen,
 	AMDGPUInfoPtr info = AMDGPUPTR(scrn);
 
 	if (info->use_glamor) {
-		int ret = glamor_fd_from_pixmap(screen, pixmap, stride, size);
+        int ret = info->glamor_abi.fd_from_pixmap(screen, pixmap, stride, size);
 
 		/* Any pending drawing operations need to be flushed to the
 		 * kernel driver before the client starts using the pixmap
@@ -734,7 +735,7 @@ static int amdgpu_dri3_fds_from_pixmap(ScreenPtr screen,
 		CARD32 size;
 		int ret;
 
-		ret = glamor_fd_from_pixmap(screen, pixmap, &stride16, &size);
+        ret = info->glamor_abi.fd_from_pixmap(screen, pixmap, &stride16, &size);
 		if (ret < 0)
 			return -1;
 

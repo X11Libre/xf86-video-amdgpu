@@ -374,6 +374,8 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode,
 {
 	ScreenPtr pScreen = pScrn->pScreen;
 	AMDGPUEntPtr pAMDGPUEnt = AMDGPUEntPriv(pScrn);
+    AMDGPUInfoPtr info = AMDGPUPTR(pScrn);
+
 	PixmapPtr pixmap = NULL;
 	drmModeFBPtr fbcon;
 
@@ -394,7 +396,7 @@ create_pixmap_for_fbcon(drmmode_ptr drmmode,
 				    fbcon->pitch, NULL);
 	pixmap->devPrivate.ptr = NULL;
 
-	if (!glamor_egl_create_textured_pixmap(pixmap, fbcon->handle,
+    if (!info->glamor_abi.egl_create_textured_pixmap(pixmap, fbcon->handle,
 					       pixmap->devKind)) {
 		dixDestroyPixmap(pixmap, 0);
 		pixmap = NULL;

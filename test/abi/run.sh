@@ -19,7 +19,10 @@ fail=0
 for s in $ABI_SERVERS; do
 	wd=$(abi_server "$s")
 	echo "run: $s -> $wd"
-	"$abi_dir/build-driver.sh" "$wd" "$wd/driver" "$repo" >/dev/null
+	if ! abi_build_driver "$wd" "$wd/driver" "$repo"; then
+		echo "run: FAIL $s (driver build failed)"
+		exit 1
+	fi
 done
 
 for built in $ABI_SERVERS; do

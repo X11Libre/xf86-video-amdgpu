@@ -37,6 +37,19 @@ abi_workdir() {
 	echo "$ABI_WORK/$(echo "$1" | tr '/' '-')-$(echo "$commit" | cut -c1-12)"
 }
 
+# Build the driver into <builddir> (build-driver.sh arguments), logging to
+# <builddir>.log. On failure print the log's tail and return 1, so a failed
+# build is reported instead of silently ending the calling script.
+abi_build_driver() {
+	log=$2.log
+	if "$abi_dir/build-driver.sh" "$@" >"$log" 2>&1; then
+		return 0
+	fi
+	echo "abi: driver build failed ($2), last lines of $log:"
+	tail -n 20 "$log" | sed 's/^/  /'
+	return 1
+}
+
 # Build (or reuse) the staged server for a tag or branch; print its workdir.
 abi_server() {
 	wd=$(abi_workdir "$1") || return 1

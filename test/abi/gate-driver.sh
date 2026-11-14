@@ -20,8 +20,12 @@ fail=0
 for s in $ABI_SERVERS; do
 	wd=$(abi_server "$s")
 	inc=$wd/root/usr/include/xorg
-	"$abi_dir/build-driver.sh" "$wd" "$wd/gate-before" "$before_src" >/dev/null
-	"$abi_dir/build-driver.sh" "$wd" "$wd/gate-after" "$repo" >/dev/null
+	if ! abi_build_driver "$wd" "$wd/gate-before" "$before_src" ||
+		! abi_build_driver "$wd" "$wd/gate-after" "$repo"; then
+		echo "gate-driver: FAIL $s (driver build failed)"
+		fail=1
+		continue
+	fi
 	if ABI_REPORT=$wd/gate-abidiff.txt "$abi_dir/abigail-compare.sh" \
 		"$wd/gate-before/src/amdgpu_drv.so" "$inc" \
 		"$wd/gate-after/src/amdgpu_drv.so" "$inc" >/dev/null; then

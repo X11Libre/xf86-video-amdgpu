@@ -56,6 +56,17 @@ if [ $rc -eq 0 ]; then
 	exit 0
 fi
 
+# Added types (e.g. a newly used server struct) set the change bit too; with
+# nothing removed or changed anywhere that is not an ABI break.
+if grep -q "^Leaf changes summary: 0 artifact" "$report" &&
+	grep -q "functions summary: 0 Removed, 0 Changed" "$report" &&
+	grep -q "variables summary: 0 Removed, 0 Changed" "$report" &&
+	! grep "^Unreachable types summary:" "$report" |
+		grep -qv "summary: 0 removed, 0 changed"; then
+	echo "abigail-compare: PASS (only additions)"
+	exit 0
+fi
+
 fail=0
 if ! grep -q "functions summary: 0 Removed" "$report" ||
 	! grep -q "variables summary: 0 Removed" "$report"; then

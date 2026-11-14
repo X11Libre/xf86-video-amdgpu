@@ -66,26 +66,27 @@ jobs:
                 MACHINE=$(gcc -dumpmachine)
                 echo "PKG_CONFIG_PATH=$HOME/x11/share/pkgconfig:$HOME/x11/lib/$MACHINE/pkgconfig:$HOME/x11/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" >> "$GITHUB_ENV"
 
+            # The ABI tools come with the xserver SDK installed in ~/x11.
             - name: server symbols, release branches
-              run: ABI_SERVERS="$RELEASE_SERVERS" test/abi/run.sh
+              run: ABI_SERVERS="$RELEASE_SERVERS" test/abi/run.sh run-matrix.sh
 
             - name: server symbols, master (non-blocking)
               continue-on-error: true
-              run: ABI_SERVERS=master test/abi/run.sh
+              run: ABI_SERVERS=master test/abi/run.sh run-matrix.sh
 
             - name: ABI gate for this pull request, release branches
               if: ${{ github.event_name == 'pull_request' }}
               run: |
                 git fetch --no-tags --depth=1 origin ${{ github.event.pull_request.base.sha }}
                 BEFORE_REF=${{ github.event.pull_request.base.sha }} \
-                ABI_SERVERS="$RELEASE_SERVERS" test/abi/gate-driver.sh
+                ABI_SERVERS="$RELEASE_SERVERS" test/abi/run.sh gate-driver.sh
 
             - name: ABI gate for this pull request, master (non-blocking)
               if: ${{ github.event_name == 'pull_request' }}
               continue-on-error: true
               run: |
                 BEFORE_REF=${{ github.event.pull_request.base.sha }} \
-                ABI_SERVERS=master test/abi/gate-driver.sh
+                ABI_SERVERS=master test/abi/run.sh gate-driver.sh
 
             - name: server-internal includes are needed
               run: |

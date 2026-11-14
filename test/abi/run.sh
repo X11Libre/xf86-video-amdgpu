@@ -1,42 +1,29 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT
 #
-# Driver ABI check across the release branch tips: build the driver against
-# each server in ABI_SERVERS and check that every server symbol the driver
-# needs exists in every one of them (a driver built against one release
-# must load into the others).
+# Run one of the xserver SDK's driver ABI tools on this driver.
 #
-#   ABI_WORK=<dir> [ABI_SERVERS=...] run.sh
+#   ABI_WORK=<dir> [ABI_SERVERS=...] test/abi/run.sh <tool> [<args>]
 #
-# Layout changes are checked per change by gate-driver.sh.
+# <tool> is e.g. run-matrix.sh (symbols across server releases) or
+# gate-driver.sh (layout gate for the working tree against BEFORE_REF).
+# The tools come from the xorg-server SDK found by pkg-config (variable
+# abi_tools_dir); their README.md there describes them.
 
 set -eu
-. "$(dirname "$0")/common.sh"
 
-repo=$(cd "$abi_dir/../.." && pwd)
-fail=0
+[ $# -ge 1 ] || { echo "usage: $0 <tool> [<args>]" >&2; exit 2; }
 
-for s in $ABI_SERVERS; do
-	wd=$(abi_server "$s")
-	echo "run: $s -> $wd"
-	if ! abi_build_driver "$wd" "$wd/driver" "$repo"; then
-		echo "run: FAIL $s (driver build failed)"
-		exit 1
-	fi
-done
+tools=$(pkg-config --variable=abi_tools_dir xorg-server 2>/dev/null || true)
+if [ -z "$tools" ] || [ ! -d "$tools" ]; then
+	echo "run.sh: the xorg-server SDK found by pkg-config has no ABI tools" \
+		"(abi_tools_dir); it needs an XLibre xserver with abi/ installed" >&2
+	exit 2
+fi
 
-for built in $ABI_SERVERS; do
-	for target in $ABI_SERVERS; do
-		bwd=$(abi_workdir "$built")
-		twd=$(abi_workdir "$target")
-		out=$bwd/symbols-$(echo "$target" | tr '/' '-').txt
-		if "$abi_dir/check-symbols.sh" "$bwd/driver/src/amdgpu_drv.so" "$twd" >"$out"; then
-			echo "run: symbols PASS built for $built, loaded into $target"
-		else
-			echo "run: symbols FAIL built for $built, loaded into $target"
-			sed 's/^/  /' "$out"
-			fail=1
-		fi
-	done
-done
-exit $fail
+tool=$1
+shift
+ABI_MODULE=src/amdgpu_drv.so
+ABI_DRIVER_SRC=$(cd "$(dirname "$0")/../.." && pwd)
+export ABI_MODULE ABI_DRIVER_SRC
+exec "$tools/$tool" "$@"

@@ -306,11 +306,14 @@ drmmode_do_crtc_dpms(xf86CrtcPtr crtc, int mode)
 		 * sequence number and frame period.
 		 */
 		if (!drmmode_wait_vblank(crtc, DRM_VBLANK_RELATIVE, 0, 0, &ust,
-					 &seq))
-			xf86DrvMsg(scrn->scrnIndex, X_ERROR,
-				   "%s cannot get last vblank counter\n",
-				   __func__);
-		else {
+					 &seq)) {
+			drmmode_crtc->dpms_last_ust = 0;
+			/* EINVAL: the kernel has already turned the CRTC off */
+			if (errno != EINVAL)
+				xf86DrvMsg(scrn->scrnIndex, X_ERROR,
+					   "%s cannot get last vblank counter\n",
+					   __func__);
+		} else {
 			CARD64 nominal_frame_rate, pix_in_frame;
 
 			drmmode_crtc->dpms_last_ust = ust;

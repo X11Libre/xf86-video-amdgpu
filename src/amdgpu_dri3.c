@@ -460,69 +460,6 @@ static int open_render_node(ScreenPtr screen, int *out)
 	return Success;
 }
 
-static PixmapPtr amdgpu_dri3_pixmap_from_fd(ScreenPtr screen,
-					    int fd,
-					    CARD16 width,
-					    CARD16 height,
-					    CARD16 stride,
-					    CARD8 depth,
-					    CARD8 bpp)
-{
-	PixmapPtr pixmap;
-	int shared_fd;
-
-	/* Avoid generating a GEM flink name if possible */
-	if (AMDGPUPTR(xf86ScreenToScrn(screen))->use_glamor) {
-		pixmap = glamor_pixmap_from_fd(screen, fd, width, height,
-					       stride, depth, bpp);
-		if (pixmap) {
-			struct amdgpu_pixmap *priv = calloc(1, sizeof(*priv));
-
-			if (priv) {
-				amdgpu_set_pixmap_private(pixmap, priv);
-				pixmap->usage_hint |= AMDGPU_CREATE_PIXMAP_DRI2;
-				return pixmap;
-			}
-
-			screen->DestroyPixmap(pixmap);
-			return NULL;
-		}
-	}
-
-	if (depth < 8)
-		return NULL;
-
-	switch (bpp) {
-	case 8:
-	case 16:
-	case 32:
-		break;
-	default:
-		return NULL;
-	}
-
-	pixmap = screen->CreatePixmap(screen, 0, 0, depth,
-				      AMDGPU_CREATE_PIXMAP_DRI2);
-	if (!pixmap)
-		return NULL;
-
-	if (!screen->ModifyPixmapHeader(pixmap, width, height, 0, bpp, stride,
-					NULL))
-		goto free_pixmap;
-
-	/* SetSharedPixmapBacking takes ownership; DRI3 closes fd itself */
-	shared_fd = dup(fd);
-	if (shared_fd < 0)
-		goto free_pixmap;
-
-	if (screen->SetSharedPixmapBacking(pixmap, (void*)(intptr_t)shared_fd))
-		return pixmap;
-
-free_pixmap:
-	fbDestroyPixmap(pixmap);
-	return NULL;
-}
-
 /* Map X depth to GBM format, returns FALSE on failure */
 static Bool
 gbm_format_from_depth(CARD8 depth, uint32_t *gbm_format)
@@ -560,21 +497,16 @@ static PixmapPtr amdgpu_dri3_pixmap_from_fds(ScreenPtr screen,
 					    CARD64 modifier)
 {
 	PixmapPtr pixmap;
-	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-	AMDGPUInfoPtr info = AMDGPUPTR(scrn);
 	struct gbm_device *gbm;
 	struct gbm_bo *bo;
 	Bool ret;
-	int i, shared_fd;
+	int i;
 	uint32_t gbm_format;
 
-	if (!info->use_glamor)
-		goto non_glamor_path;
-
-	/* glamor path: use GBM to import multi-plane buffers */
+	/* DRI3 is only enabled with glamor: use GBM to import the buffers */
 	gbm = glamor_egl_get_gbm_device(screen);
 	if (!gbm)
-		goto non_glamor_path;
+		return NULL;
 
 	pixmap = screen->CreatePixmap(screen, 0, 0, depth, 0);
 	if (!pixmap)
@@ -647,50 +579,6 @@ static PixmapPtr amdgpu_dri3_pixmap_from_fds(ScreenPtr screen,
 error:
 	if (pixmap)
 		dixDestroyPixmap(pixmap, 0);
-	return NULL;
-
-non_glamor_path:
-	/* Non-glamor path: only supports single-plane buffers.
-	 * The SetSharedPixmapBacking interface only accepts a single FD.
-	 */
-	if (num_fds != 1)
-		return NULL;
-
-	if (modifier != DRM_FORMAT_MOD_INVALID &&
-	    modifier != DRM_FORMAT_MOD_LINEAR)
-		return NULL;
-
-	if (depth < 8)
-		return NULL;
-
-	switch (bpp) {
-	case 8:
-	case 16:
-	case 32:
-		break;
-	default:
-		return NULL;
-	}
-
-	pixmap = screen->CreatePixmap(screen, 0, 0, depth,
-				      AMDGPU_CREATE_PIXMAP_DRI2);
-	if (!pixmap)
-		return NULL;
-
-	if (!screen->ModifyPixmapHeader(pixmap, width, height, 0, bpp, strides[0],
-					NULL))
-		goto free_pixmap;
-
-	/* SetSharedPixmapBacking takes ownership; DRI3 closes fds itself */
-	shared_fd = dup(fds[0]);
-	if (shared_fd < 0)
-		goto free_pixmap;
-
-	if (screen->SetSharedPixmapBacking(pixmap, (void*)(intptr_t)shared_fd))
-		return pixmap;
-
-free_pixmap:
-	fbDestroyPixmap(pixmap);
 	return NULL;
 }
 
@@ -1041,7 +929,6 @@ static dri3_screen_info_rec amdgpu_dri3_screen_info = {
 	.version = 4,
 	/* Version 1 */
 	.open = amdgpu_dri3_open,
-	.pixmap_from_fd = amdgpu_dri3_pixmap_from_fd,
 	.open_client = amdgpu_dri3_open_client,
 	/* Version 1.1 */
 	.fd_from_pixmap = amdgpu_dri3_fd_from_pixmap,

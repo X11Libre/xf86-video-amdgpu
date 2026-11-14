@@ -1995,10 +1995,21 @@ Bool AMDGPUScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
 		PictureSetSubpixelOrder(pScreen, subPixelOrder);
 	}
 
-	value = info->use_glamor;
+	pScrn->vtSema = TRUE;
+	xf86SetBackingStore(pScreen);
+
+	if (info->directRenderingEnabled) {
+		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
+			   "Direct rendering enabled\n");
+	} else {
+		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
+			   "Direct rendering disabled\n");
+	}
+
+	value = info->use_glamor && info->directRenderingEnabled;
 	from = X_DEFAULT;
 
-	if (info->use_glamor) {
+	if (value) {
 		if (xf86GetOptValBool(info->Options, OPTION_DRI3, &value))
 			from = X_CONFIG;
 
@@ -2009,26 +2020,10 @@ Bool AMDGPUScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
 		}
 	}
 
-	if (value) {
-		value = amdgpu_sync_init(pScreen) &&
-			amdgpu_present_screen_init(pScreen) &&
-			amdgpu_dri3_screen_init(pScreen);
-
-		if (!value)
-			from = X_WARNING;
-	}
-
-	xf86DrvMsg(pScrn->scrnIndex, from, "DRI3 %sabled\n", value ? "en" : "dis");
-
-	pScrn->vtSema = TRUE;
-	xf86SetBackingStore(pScreen);
-
-	if (info->directRenderingEnabled) {
-		xf86DrvMsg(pScrn->scrnIndex, X_INFO,
-			   "Direct rendering enabled\n");
-	} else {
-		xf86DrvMsg(pScrn->scrnIndex, X_WARNING,
-			   "Direct rendering disabled\n");
+	/* Before glamor_init(), which would set up the SYNC fd functions itself */
+	if (value && !amdgpu_sync_init(pScreen)) {
+		value = FALSE;
+		from = X_WARNING;
 	}
 
 	if (info->use_glamor && info->directRenderingEnabled) {
@@ -2051,6 +2046,22 @@ Bool AMDGPUScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
 	} else {
 		xf86DrvMsg(pScrn->scrnIndex, X_INFO, "2D and 3D acceleration disabled\n");
 	}
+
+	/* DRI3 needs glamor to have been initialized above */
+	if (value && !info->use_glamor) {
+		value = FALSE;
+		from = X_WARNING;
+	}
+
+	if (value) {
+		value = amdgpu_present_screen_init(pScreen) &&
+			amdgpu_dri3_screen_init(pScreen);
+
+		if (!value)
+			from = X_WARNING;
+	}
+
+	xf86DrvMsg(pScrn->scrnIndex, from, "DRI3 %sabled\n", value ? "en" : "dis");
 
 	/* Init DPMS */
 	xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, AMDGPU_LOGLEVEL_DEBUG,

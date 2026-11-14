@@ -12,7 +12,7 @@ jobs:
                 xserver-version: [ master, xlibre-xserver-25.1.1, xlibre-xserver-25.0.0.20 ]
         runs-on: ubuntu-latest
         steps:
-            - uses: X11Libre/action-build-driver/target/ubuntu@v0.4.0
+            - uses: X11Libre/action-build-driver/target/ubuntu@v0.4.1
               with:
                 xserver-version: ${{ matrix.xserver-version }}
 
@@ -22,7 +22,7 @@ jobs:
                 xserver-version: [ master, xlibre-xserver-25.1.1, xlibre-xserver-25.0.0.20 ]
         runs-on: ubuntu-latest
         steps:
-            - uses: X11Libre/action-build-driver/target/freebsd@v0.4.0
+            - uses: X11Libre/action-build-driver/target/freebsd@v0.4.1
               with:
                 xserver-version: ${{ matrix.xserver-version }}
 
@@ -33,7 +33,7 @@ jobs:
                 xserver-version: [ master, xlibre-xserver-25.1.1 ]
         runs-on: ubuntu-latest
         steps:
-            - uses: X11Libre/action-build-driver/target/dragonfly@v0.4.0
+            - uses: X11Libre/action-build-driver/target/dragonfly@v0.4.1
               with:
                 xserver-version: ${{ matrix.xserver-version }}
 
@@ -43,7 +43,7 @@ jobs:
                 xserver-version: [ master, xlibre-xserver-25.1.1 ]
         runs-on: ubuntu-latest
         steps:
-            - uses: X11Libre/action-build-driver/target/netbsd@v0.4.0
+            - uses: X11Libre/action-build-driver/target/netbsd@v0.4.1
               with:
                 xserver-version: ${{ matrix.xserver-version }}
 
@@ -53,7 +53,7 @@ jobs:
             RELEASE_SERVERS: release/25.0 release/25.1 release/25.2
         steps:
             # Installs build dependencies and the prerequisites in ~/x11.
-            - uses: X11Libre/action-build-driver/target/ubuntu@v0.4.0
+            - uses: X11Libre/action-build-driver/target/ubuntu@v0.4.1
               with:
                 xserver-version: release/25.2
 
@@ -100,4 +100,4 @@ jobs:
         env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         steps:
-            - uses: X11Libre/action-build-driver/release@v0.4.0
+            - uses: X11Libre/action-build-driver/release@v0.4.1

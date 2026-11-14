@@ -969,7 +969,6 @@ amdgpu_dri3_get_modifiers(ScreenPtr screen, uint32_t format,
 	return count;
 }
 
-#ifdef GBM_BO_WITH_MODIFIERS
 /*
  * Modifiers for buffers of this drawable: the enabled CRTCs' scanout
  * modifiers when the drawable can be page flipped, else none, so the
@@ -996,7 +995,6 @@ amdgpu_dri3_get_drawable_modifiers(DrawablePtr draw, uint32_t format,
 						       modifiers);
 	return TRUE;
 }
-#endif /* GBM_BO_WITH_MODIFIERS */
 
 static dri3_screen_info_rec amdgpu_dri3_screen_info = {
 	.version = 4,
@@ -1011,9 +1009,7 @@ static dri3_screen_info_rec amdgpu_dri3_screen_info = {
 	.fds_from_pixmap = amdgpu_dri3_fds_from_pixmap,
 	.get_formats = amdgpu_dri3_get_formats,
 	.get_modifiers = amdgpu_dri3_get_modifiers,
-#ifdef GBM_BO_WITH_MODIFIERS
 	.get_drawable_modifiers = amdgpu_dri3_get_drawable_modifiers,
-#endif
 };
 
 Bool

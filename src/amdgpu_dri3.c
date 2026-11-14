@@ -579,8 +579,8 @@ static PixmapPtr amdgpu_dri3_pixmap_from_fds(ScreenPtr screen,
 		goto error;
 
 #ifdef GBM_BO_IMPORT_FD_MODIFIER
-	/* Try multi-plane import with modifier first */
-	if (modifier != DRM_FORMAT_MOD_INVALID && num_fds > 1) {
+	/* GBM_BO_IMPORT_FD drops the modifier, so use it only without one */
+	if (modifier != DRM_FORMAT_MOD_INVALID) {
 		struct gbm_import_fd_modifier_data import_data = { 0 };
 
 		import_data.width = width;
@@ -598,11 +598,15 @@ static PixmapPtr amdgpu_dri3_pixmap_from_fds(ScreenPtr screen,
 	} else
 #endif
 	{
-		/* Single plane or no modifier - use GBM_BO_IMPORT_FD */
 		struct gbm_import_fd_data import_data = { 0 };
 
 		if (num_fds != 1)
 			goto error;
+#ifndef GBM_BO_IMPORT_FD_MODIFIER
+		if (modifier != DRM_FORMAT_MOD_INVALID &&
+		    modifier != DRM_FORMAT_MOD_LINEAR)
+			goto error;
+#endif
 
 		import_data.fd = fds[0];
 		import_data.width = width;
@@ -642,6 +646,10 @@ non_glamor_path:
 	 * The SetSharedPixmapBacking interface only accepts a single FD.
 	 */
 	if (num_fds != 1)
+		return NULL;
+
+	if (modifier != DRM_FORMAT_MOD_INVALID &&
+	    modifier != DRM_FORMAT_MOD_LINEAR)
 		return NULL;
 
 	if (depth < 8)

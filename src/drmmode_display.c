@@ -1802,6 +1802,8 @@ static void drmmode_crtc_cm_init(int drm_fd, xf86CrtcPtr crtc)
 
 	/* Push properties to reset properties currently in hardware */
 	for (i = CM_DEGAMMA_LUT; i <= CM_GAMMA_LUT; i++) {
+		if (!drmmode_cm_prop_supported(drmmode_crtc->drmmode, i))
+			continue;
 		if (drmmode_crtc_push_cm_prop(crtc, i))
 			xf86DrvMsg(crtc->scrn->scrnIndex, X_ERROR,
 				   "Failed to initialize color management "

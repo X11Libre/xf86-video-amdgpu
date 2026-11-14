@@ -41,6 +41,10 @@ struct amdgpu_pixmap {
 	/* GEM handle for pixmaps shared via DRI2/3 */
 	Bool handle_valid;
 	uint32_t handle;
+
+	/* Explicit modifier of a DRI3 import (has_modifier FALSE if implicit) */
+	Bool has_modifier;
+	uint64_t modifier;
 };
 
 extern DevPrivateKeyRec amdgpu_pixmap_index;

@@ -292,6 +292,7 @@ typedef struct {
 
 /* amdgpu_dri3.c */
 Bool amdgpu_dri3_screen_init(ScreenPtr screen);
+Bool amdgpu_dri3_pixmap_can_scanout(PixmapPtr pixmap);
 
 /* amdgpu_kms.c */
 Bool amdgpu_window_has_variable_refresh(WindowPtr win);

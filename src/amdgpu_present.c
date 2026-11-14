@@ -312,6 +312,30 @@ amdgpu_present_check_flip(RRCrtcPtr crtc, WindowPtr window, PixmapPtr pixmap,
 	return TRUE;
 }
 
+#if PRESENT_SCREEN_INFO_VERSION >= 1
+/*
+ * As amdgpu_present_check_flip, and tell the server when only the buffer's
+ * modifier stops the flip, so the client can reallocate (DRI3 1.2). The
+ * server reports that reason only if all its other checks pass.
+ */
+static Bool
+amdgpu_present_check_flip2(RRCrtcPtr crtc, WindowPtr window,
+			   PixmapPtr pixmap, Bool sync_flip,
+			   PresentFlipReason *reason)
+{
+	if (!amdgpu_present_check_flip(crtc, window, pixmap, sync_flip))
+		return FALSE;
+
+	if (!amdgpu_dri3_pixmap_can_scanout(pixmap)) {
+		if (reason)
+			*reason = PRESENT_FLIP_REASON_BUFFER_FORMAT;
+		return FALSE;
+	}
+
+	return TRUE;
+}
+#endif
+
 /*
  * Once the flip has been completed on all CRTCs, notify the
  * extension code telling it when that happened
@@ -446,7 +470,11 @@ modeset:
 }
 
 static present_screen_info_rec amdgpu_present_screen_info = {
+#if PRESENT_SCREEN_INFO_VERSION >= 1
+	.version = 1,
+#else
 	.version = 0,
+#endif
 
 	.get_crtc = amdgpu_present_get_crtc,
 	.get_ust_msc = amdgpu_present_get_ust_msc,
@@ -455,7 +483,11 @@ static present_screen_info_rec amdgpu_present_screen_info = {
 	.flush = amdgpu_present_flush,
 
 	.capabilities = PresentCapabilityNone,
+#if PRESENT_SCREEN_INFO_VERSION >= 1
+	.check_flip2 = amdgpu_present_check_flip2,
+#else
 	.check_flip = amdgpu_present_check_flip,
+#endif
 	.flip = amdgpu_present_flip,
 	.unflip = amdgpu_present_unflip,
 };

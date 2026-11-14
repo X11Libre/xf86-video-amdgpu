@@ -632,6 +632,8 @@ static PixmapPtr amdgpu_dri3_pixmap_from_fds(ScreenPtr screen,
 			struct amdgpu_pixmap *priv = calloc(1, sizeof(*priv));
 
 			if (priv) {
+				priv->has_modifier = modifier != DRM_FORMAT_MOD_INVALID;
+				priv->modifier = modifier;
 				amdgpu_set_pixmap_private(pixmap, priv);
 				pixmap->usage_hint |= AMDGPU_CREATE_PIXMAP_DRI2;
 				return pixmap;
@@ -921,6 +923,34 @@ amdgpu_dri3_scanout_modifiers(ScrnInfoPtr scrn, uint32_t format,
 	}
 
 	return count;
+}
+
+/*
+ * FALSE only when the pixmap was imported with an explicit modifier that no
+ * enabled CRTC's primary plane accepts for its format.
+ */
+Bool
+amdgpu_dri3_pixmap_can_scanout(PixmapPtr pixmap)
+{
+	ScrnInfoPtr scrn = xf86ScreenToScrn(pixmap->drawable.pScreen);
+	struct amdgpu_pixmap *priv = amdgpu_get_pixmap_private(pixmap);
+	uint32_t format, count, i;
+	uint64_t *mods;
+	Bool found = FALSE;
+
+	if (!priv || !priv->has_modifier ||
+	    !gbm_format_from_depth(pixmap->drawable.depth, &format))
+		return TRUE;
+
+	count = amdgpu_dri3_scanout_modifiers(scrn, format, TRUE, &mods);
+	if (count == 0)
+		return TRUE;	/* the kernel lists no modifiers to compare with */
+
+	for (i = 0; i < count && !found; i++)
+		found = mods[i] == priv->modifier;
+	free(mods);
+
+	return found;
 }
 
 typedef Bool (*amdgpu_glamor_get_modifiers_proc)(ScreenPtr screen,

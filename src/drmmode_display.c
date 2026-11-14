@@ -3309,6 +3309,28 @@ drmmode_page_flip_target_relative(AMDGPUEntPtr pAMDGPUEnt,
 				 drm_queue_seq);
 }
 
+static int
+drmmode_page_flip_crtc(AMDGPUEntPtr pAMDGPUEnt,
+		       drmmode_crtc_private_ptr drmmode_crtc, Bool absolute,
+		       int fb_id, uint32_t flags, uintptr_t drm_queue_seq,
+		       uint32_t target_msc)
+{
+	int (*flip)(AMDGPUEntPtr, drmmode_crtc_private_ptr, int, uint32_t,
+		    uintptr_t, uint32_t) =
+		absolute ? drmmode_page_flip_target_absolute :
+			   drmmode_page_flip_target_relative;
+	int ret = flip(pAMDGPUEnt, drmmode_crtc, fb_id, flags, drm_queue_seq,
+		       target_msc);
+
+	/* amdgpu_dm only accepts async flips that are fast updates */
+	if (ret == -EINVAL && (flags & DRM_MODE_PAGE_FLIP_ASYNC))
+		ret = flip(pAMDGPUEnt, drmmode_crtc, fb_id,
+			   flags & ~DRM_MODE_PAGE_FLIP_ASYNC, drm_queue_seq,
+			   target_msc);
+
+	return ret;
+}
+
 /**
  * Initialize DDX color management support. It does two things:
  *
@@ -4115,19 +4137,16 @@ Bool amdgpu_do_pageflip(ScrnInfoPtr scrn, ClientPtr client,
 		}
 
 		if (crtc == ref_crtc) {
-			if (drmmode_page_flip_target_absolute(pAMDGPUEnt,
-							      drmmode_crtc,
-							      flipdata->fb[crtc_id]->handle,
-							      flip_flags,
-							      drm_queue_seq,
-							      target_msc) != 0)
+			if (drmmode_page_flip_crtc(pAMDGPUEnt, drmmode_crtc, TRUE,
+						   flipdata->fb[crtc_id]->handle,
+						   flip_flags, drm_queue_seq,
+						   target_msc) != 0)
 				goto flip_error;
 		} else {
-			if (drmmode_page_flip_target_relative(pAMDGPUEnt,
-							      drmmode_crtc,
-							      flipdata->fb[crtc_id]->handle,
-							      sec_flip_flags,
-							      drm_queue_seq, 0) != 0)
+			if (drmmode_page_flip_crtc(pAMDGPUEnt, drmmode_crtc, FALSE,
+						   flipdata->fb[crtc_id]->handle,
+						   sec_flip_flags,
+						   drm_queue_seq, 0) != 0)
 				goto flip_error;
 		}
 

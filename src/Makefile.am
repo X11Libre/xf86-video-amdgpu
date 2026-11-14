@@ -44,7 +44,7 @@ amdgpu_drv_la_LIBADD += $(LIBUDEV_LIBS)
 endif
 
 amdgpu_drv_la_LTLIBRARIES = amdgpu_drv.la
-amdgpu_drv_la_LDFLAGS = -module -avoid-version
+amdgpu_drv_la_LDFLAGS = -module -avoid-version $(LAZY_LDFLAGS)
 amdgpu_drv_ladir = @xlibre_video_drivers_dir@
 amdgpu_drv_la_SOURCES = \
 	amdgpu_video.c \

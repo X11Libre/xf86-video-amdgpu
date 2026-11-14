@@ -71,6 +71,9 @@ shared_module(
   include_directories: include_directories('..'),
   dependencies: amdgpu_drv_libs,
   c_args: drm_args + gfx12_args,
+  # glamor's symbols come from libglamoregl.so, which the driver loads itself,
+  # so the module must not be bound at load time (toolchains defaulting to -z now)
+  link_args: cc.get_supported_link_arguments('-Wl,-z,lazy'),
   install: true,
   install_dir: join_paths(moduledir, 'drivers'),
   name_prefix: '',

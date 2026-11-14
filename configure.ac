@@ -144,6 +144,17 @@ AC_CHECK_DECLS([AMD_FMT_MOD_TILE_VER_GFX12, AMD_FMT_MOD_TILE_GFX12_256B_2D, AMD_
     [#include <drm_fourcc.h>])
 CPPFLAGS="$SAVE_CPPFLAGS"
 
+# glamor's symbols come from libglamoregl.so, which the driver loads itself,
+# so the module must not be bound at load time (toolchains defaulting to -z now)
+AC_MSG_CHECKING([whether the linker accepts -Wl,-z,lazy])
+SAVE_LDFLAGS="$LDFLAGS"
+LDFLAGS="$LDFLAGS -Wl,-z,lazy"
+AC_LINK_IFELSE([AC_LANG_PROGRAM([], [])],
+	       [AC_MSG_RESULT([yes]); LAZY_LDFLAGS="-Wl,-z,lazy"],
+	       [AC_MSG_RESULT([no]); LAZY_LDFLAGS=""])
+LDFLAGS="$SAVE_LDFLAGS"
+AC_SUBST(LAZY_LDFLAGS)
+
 AC_CONFIG_FILES([Makefile src/Makefile man/Makefile conf/Makefile])
 AC_OUTPUT
 

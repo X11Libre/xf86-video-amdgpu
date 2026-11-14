@@ -2029,6 +2029,64 @@ koutput_get_prop_blob(int fd, drmModeConnectorPtr koutput, const char *name)
     return blob;
 }
 
+/* EDID block size; the server's EDID1_LEN is private from 25.2 on. */
+#define DRMMODE_EDID_BLOCK_LEN 128
+
+typedef xf86MonPtr (*drmmode_parse_edid_proc)(ScrnInfoPtr, uint8_t *, size_t);
+
+/* xf86ParseEDID() exists only in 25.0.0.23+ and 25.1.5+ (same ABI). */
+static xf86MonPtr
+drmmode_parse_edid(xf86OutputPtr output, drmModePropertyBlobPtr blob)
+{
+	static drmmode_parse_edid_proc parse_edid;
+	static Bool looked_up;
+	drmmode_output_private_ptr drmmode_output = output->driver_private;
+	ScrnInfoPtr scrn = output->scrn;
+	uint8_t *data = blob->data;
+	size_t size = blob->length;
+	unsigned int ext;
+	xf86MonPtr mon;
+
+	if (size < DRMMODE_EDID_BLOCK_LEN) {
+		if (drmmode_output->edid_warned_blob_id != blob->id) {
+			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+				   "%s: EDID blob too short (%zu bytes), ignoring\n",
+				   output->name, size);
+			drmmode_output->edid_warned_blob_id = blob->id;
+		}
+		return NULL;
+	}
+
+	ext = data[126];
+	if (ext > 127 || size < (size_t)DRMMODE_EDID_BLOCK_LEN * (ext + 1)) {
+		if (drmmode_output->edid_warned_blob_id != blob->id) {
+			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+				   "%s: EDID claims %u extension blocks but blob has %zu bytes, using base block only\n",
+				   output->name, ext, size);
+			drmmode_output->edid_warned_blob_id = blob->id;
+		}
+		size = DRMMODE_EDID_BLOCK_LEN;
+	} else {
+		size = (size_t)DRMMODE_EDID_BLOCK_LEN * (ext + 1);
+	}
+
+	if (!looked_up) {
+		parse_edid = (drmmode_parse_edid_proc)LoaderSymbol("xf86ParseEDID");
+		looked_up = TRUE;
+		xf86DrvMsgVerb(scrn->scrnIndex, X_INFO, AMDGPU_LOGLEVEL_DEBUG,
+			       "EDID parser: %s\n",
+			       parse_edid ? "xf86ParseEDID" : "xf86InterpretEDID");
+	}
+
+	if (parse_edid)
+		return parse_edid(scrn, data, size);
+
+	mon = xf86InterpretEDID(scrn->scrnIndex, data);
+	if (mon && size > DRMMODE_EDID_BLOCK_LEN)
+		mon->flags |= MONITOR_EDID_COMPLETE_RAWDATA;
+	return mon;
+}
+
 static DisplayModePtr drmmode_output_get_modes(xf86OutputPtr output)
 {
 	drmmode_output_private_ptr drmmode_output = output->driver_private;
@@ -2048,10 +2106,7 @@ static DisplayModePtr drmmode_output_get_modes(xf86OutputPtr output)
 		koutput_get_prop_blob(pAMDGPUEnt->fd, koutput, "EDID");
 
 	if (drmmode_output->edid_blob) {
-		mon = xf86InterpretEDID(output->scrn->scrnIndex,
-					drmmode_output->edid_blob->data);
-		if (mon && drmmode_output->edid_blob->length > 128)
-			mon->flags |= MONITOR_EDID_COMPLETE_RAWDATA;
+		mon = drmmode_parse_edid(output, drmmode_output->edid_blob);
 	}
 	xf86OutputSetEDID(output, mon);
 

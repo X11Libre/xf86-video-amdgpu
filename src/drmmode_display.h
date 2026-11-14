@@ -159,6 +159,7 @@ typedef struct {
 	drmModeConnectorPtr mode_output;
 	drmModeEncoderPtr *mode_encoders;
 	drmModePropertyBlobPtr edid_blob;
+	uint32_t edid_warned_blob_id;
 	drmModePropertyBlobPtr tile_blob;
 	int dpms_enum_id;
 	int num_props;

@@ -31,7 +31,7 @@
 #include <sys/ioctl.h>
 #include <time.h>
 #include "cursorstr.h"
-#include "damagestr.h"
+#include "damage.h"
 #include "inputstr.h"
 #include "list.h"
 #include "micmap.h"
@@ -511,16 +511,17 @@ static void
 amdgpu_screen_damage_report(DamagePtr damage, RegionPtr region, void *closure)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = closure;
+	RegionPtr damage_region = DamageRegion(damage);
 
 	if (drmmode_crtc->ignore_damage) {
-		RegionEmpty(&damage->damage);
+		RegionEmpty(damage_region);
 		drmmode_crtc->ignore_damage = FALSE;
 		return;
 	}
 
 	/* Only keep track of the extents */
-	RegionUninit(&damage->damage);
-	damage->damage.data = NULL;
+	RegionUninit(damage_region);
+	damage_region->data = NULL;
 }
 
 static void

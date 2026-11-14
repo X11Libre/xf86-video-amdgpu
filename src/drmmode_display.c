@@ -1505,7 +1505,7 @@ retry:
 
 	if (id != drmmode_crtc->cursor_id) {
 		drmmode_crtc->cursor_id = id;
-		crtc->funcs->show_cursor(crtc);
+		crtc->funcs->show_cursor_check(crtc);
 	}
 }
 
@@ -1530,7 +1530,8 @@ static void drmmode_hide_cursor(xf86CrtcPtr crtc)
 	drmmode_crtc->cursor = NULL;
 }
 
-static void drmmode_show_cursor(xf86CrtcPtr crtc)
+/* FALSE when the kernel rejects the cursor, so the server falls back to SW */
+static Bool drmmode_show_cursor(xf86CrtcPtr crtc)
 {
 	ScrnInfoPtr pScrn = crtc->scrn;
 	AMDGPUInfoPtr info = AMDGPUPTR(pScrn);
@@ -1551,7 +1552,7 @@ static void drmmode_show_cursor(xf86CrtcPtr crtc)
 
 	if (!amdgpu_bo_get_handle(cursor_buffer, &arg.handle)) {
 		ErrorF("failed to get BO handle for cursor\n");
-		return;
+		return FALSE;
 	}
 
 	arg.flags = DRM_MODE_CURSOR_BO;
@@ -1605,10 +1606,10 @@ static void drmmode_show_cursor(xf86CrtcPtr crtc)
 		if (ret == -1 && errno == EINVAL)
 			use_set_cursor2 = FALSE;
 		else
-			return;
+			return ret == 0;
 	}
 
-	drmIoctl(pAMDGPUEnt->fd, DRM_IOCTL_MODE_CURSOR, &arg);
+	return drmIoctl(pAMDGPUEnt->fd, DRM_IOCTL_MODE_CURSOR, &arg) == 0;
 }
 
 /* Xlibre expects a non-NULL return value from drmmode_crtc_shadow_allocate, and
@@ -1737,7 +1738,7 @@ static xf86CrtcFuncsRec drmmode_crtc_funcs = {
 	.set_mode_major = drmmode_set_mode_major,
 	.set_cursor_colors = drmmode_set_cursor_colors,
 	.set_cursor_position = drmmode_set_cursor_position,
-	.show_cursor = drmmode_show_cursor,
+	.show_cursor_check = drmmode_show_cursor,
 	.hide_cursor = drmmode_hide_cursor,
 	.load_cursor_argb = drmmode_load_cursor_argb,
 	.load_cursor_argb_check = drmmode_load_cursor_argb_check,

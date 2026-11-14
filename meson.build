@@ -66,6 +66,7 @@ configure_file(
 subdir('src')
 subdir('man')
 subdir('conf')
+subdir('test')
 
 summary({
   'prefix': get_option('prefix'),

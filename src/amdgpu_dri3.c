@@ -469,6 +469,7 @@ static PixmapPtr amdgpu_dri3_pixmap_from_fd(ScreenPtr screen,
 					    CARD8 bpp)
 {
 	PixmapPtr pixmap;
+	int shared_fd;
 
 	/* Avoid generating a GEM flink name if possible */
 	if (AMDGPUPTR(xf86ScreenToScrn(screen))->use_glamor) {
@@ -509,7 +510,12 @@ static PixmapPtr amdgpu_dri3_pixmap_from_fd(ScreenPtr screen,
 					NULL))
 		goto free_pixmap;
 
-	if (screen->SetSharedPixmapBacking(pixmap, (void*)(intptr_t)fd))
+	/* SetSharedPixmapBacking takes ownership; DRI3 closes fd itself */
+	shared_fd = dup(fd);
+	if (shared_fd < 0)
+		goto free_pixmap;
+
+	if (screen->SetSharedPixmapBacking(pixmap, (void*)(intptr_t)shared_fd))
 		return pixmap;
 
 free_pixmap:
@@ -559,7 +565,7 @@ static PixmapPtr amdgpu_dri3_pixmap_from_fds(ScreenPtr screen,
 	struct gbm_device *gbm;
 	struct gbm_bo *bo;
 	Bool ret;
-	int i;
+	int i, shared_fd;
 	uint32_t gbm_format;
 
 	if (!info->use_glamor)
@@ -673,7 +679,12 @@ non_glamor_path:
 					NULL))
 		goto free_pixmap;
 
-	if (screen->SetSharedPixmapBacking(pixmap, (void*)(intptr_t)fds[0]))
+	/* SetSharedPixmapBacking takes ownership; DRI3 closes fds itself */
+	shared_fd = dup(fds[0]);
+	if (shared_fd < 0)
+		goto free_pixmap;
+
+	if (screen->SetSharedPixmapBacking(pixmap, (void*)(intptr_t)shared_fd))
 		return pixmap;
 
 free_pixmap:

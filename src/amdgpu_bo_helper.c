@@ -398,13 +398,12 @@ struct amdgpu_buffer *amdgpu_gem_bo_open_prime(amdgpu_device_handle pDev,
 }
 
 
-Bool amdgpu_set_shared_pixmap_backing(PixmapPtr ppix, void *fd_handle)
+static Bool amdgpu_import_shared_pixmap_fd(PixmapPtr ppix, int ihandle)
 {
 	ScrnInfoPtr pScrn = xf86ScreenToScrn(ppix->drawable.pScreen);
 	AMDGPUInfoPtr info = AMDGPUPTR(pScrn);
 	AMDGPUEntPtr pAMDGPUEnt = AMDGPUEntPriv(pScrn);
 	struct amdgpu_buffer *pixmap_buffer = NULL;
-	int ihandle = (int)(long)fd_handle;
 	uint32_t size = ppix->devKind * ppix->drawable.height;
 	Bool ret;
 
@@ -460,13 +459,22 @@ Bool amdgpu_set_shared_pixmap_backing(PixmapPtr ppix, void *fd_handle)
 		return FALSE;
 	}
 
-	close(ihandle);
-
 	ret = amdgpu_set_pixmap_bo(ppix, pixmap_buffer);
 
 	/* we have a reference from the alloc and one from set pixmap bo,
 	   drop one */
 	amdgpu_bo_unref(&pixmap_buffer);
 
+	return ret;
+}
+
+/* Takes ownership of the fd in fd_handle: it is closed on every path */
+Bool amdgpu_set_shared_pixmap_backing(PixmapPtr ppix, void *fd_handle)
+{
+	int ihandle = (int)(long)fd_handle;
+	Bool ret = amdgpu_import_shared_pixmap_fd(ppix, ihandle);
+
+	if (ihandle != -1)
+		close(ihandle);
 	return ret;
 }

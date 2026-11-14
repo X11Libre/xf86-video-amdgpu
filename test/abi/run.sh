@@ -33,7 +33,8 @@ for built in $ABI_SERVERS; do
 		if "$abi_dir/check-symbols.sh" "$bwd/driver/src/amdgpu_drv.so" "$twd" >"$out"; then
 			echo "run: symbols PASS built for $built, loaded into $target"
 		else
-			echo "run: symbols FAIL built for $built, loaded into $target (see $out)"
+			echo "run: symbols FAIL built for $built, loaded into $target"
+			sed 's/^/  /' "$out"
 			fail=1
 		fi
 	done

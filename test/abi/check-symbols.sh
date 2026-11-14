@@ -21,12 +21,14 @@ root=$(cd "$2/root" && pwd)
 xorg=$root/usr/bin/Xorg
 [ -f "$xorg" ] || { echo "check-symbols: no $xorg" >&2; exit 2; }
 
-pcdirs=
-for d in "$root"/usr/lib*/pkgconfig "$root"/usr/lib/*/pkgconfig; do
-	[ -f "$d/xorg-server.pc" ] && pcdirs=${pcdirs:+$pcdirs:}$d
-done
-moduledir=$(PKG_CONFIG_PATH=$pcdirs PKG_CONFIG_XORG_SERVER_PREFIX=$root/usr \
-	pkg-config --variable=moduledir xorg-server)
+pcdir=$("$(dirname "$0")/staged-pc.sh" "$2") || exit 2
+moduledir=$(PKG_CONFIG_PATH=$pcdir pkg-config --variable=moduledir xorg-server)
+case $moduledir in
+"$root"/*) ;;
+*) echo "check-symbols: moduledir '$moduledir' is outside $root" >&2
+   exit 2 ;;
+esac
+[ -d "$moduledir" ] || { echo "check-symbols: no module dir $moduledir" >&2; exit 2; }
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
@@ -49,7 +51,8 @@ nm -D --undefined-only "$drv" | grep ' U ' | tr -s ' ' | cut -d' ' -f3 |
 comm -23 "$tmp/undef" "$tmp/libs" | comm -23 - "$tmp/server" >"$tmp/missing"
 
 if [ -s "$tmp/missing" ]; then
-	echo "check-symbols: FAIL: $drv needs symbols $root does not export:"
+	echo "check-symbols: FAIL: $drv needs symbols $root does not export" \
+		"(modules from $moduledir):"
 	sed 's/^/  /' "$tmp/missing"
 	exit 1
 fi

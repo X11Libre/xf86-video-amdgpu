@@ -63,22 +63,25 @@ if ! grep -q "functions summary: 0 Removed" "$report" ||
 	fail=1
 fi
 
-# Leaf entries look like "  [C] 'struct _damage' changed:" followed by
-# indented detail lines. A type counts as changed only when its own entry
-# reports a layout change; entries that just repeat a change through a
-# pointer ("underlying type ... changed") do not.
+# Leaf entries look like "'struct _damage' changed:" (types reachable from
+# exported symbols) or "  [C] 'struct _damage' changed:" (unreachable
+# types), followed by indented detail lines. A type counts as changed only
+# when its own entry reports a layout change; entries that just repeat a
+# change through a pointer ("underlying type ... changed") do not.
 changed=
 current=
 while IFS= read -r line; do
 	case $line in
-	"  [C] '"*"' changed:")
-		current=${line#  \[C\] \'}
+	"'"*"' changed:" | "  [C] '"*"' changed:")
+		current=${line#  \[C\] }
+		current=${current#\'}
 		current=${current%\' changed:}
 		for prefix in "const " "struct " "union " "enum " "class " "typedef "; do
 			current=${current#"$prefix"}
 		done
 		;;
-	"  "[!\ ]*)
+	"  ["?"] "* | [!\ ]*)
+		# another tagged entry, or a top-level line that is not a header
 		current=
 		;;
 	*"type size changed"* | *"data member insertion"* | \

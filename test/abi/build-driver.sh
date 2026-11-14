@@ -6,9 +6,9 @@
 #
 #   build-driver.sh <server-workdir> <driver-builddir> [<driver-srcdir>]
 #
-# Only the xorg-server package is redirected to the staged root (pkg-config's
-# per-package PKG_CONFIG_XORG_SERVER_PREFIX override); every other
-# dependency keeps coming from the system.
+# Only the xorg-server package is redirected to the staged root (through
+# the xorg-server.pc copy staged-pc.sh writes); every other dependency keeps
+# coming from the system.
 
 set -eu
 
@@ -22,21 +22,17 @@ root=$(cd "$1/root" && pwd)
 builddir=$2
 srcdir=${3:-$here/../..}
 
-pcdirs=
-for d in "$root"/usr/lib*/pkgconfig "$root"/usr/lib/*/pkgconfig; do
-	[ -f "$d/xorg-server.pc" ] && pcdirs=${pcdirs:+$pcdirs:}$d
-done
-if [ -z "$pcdirs" ]; then
-	echo "build-driver: no xorg-server.pc under $root" >&2
-	exit 1
-fi
+pcdir=$("$here/staged-pc.sh" "$1")
+PKG_CONFIG_PATH=$pcdir${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
+export PKG_CONFIG_PATH
 
-PKG_CONFIG_PATH=$pcdirs${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}
-PKG_CONFIG_XORG_SERVER_PREFIX=$root/usr
-export PKG_CONFIG_PATH PKG_CONFIG_XORG_SERVER_PREFIX
-
+sdkdir=$(pkg-config --variable=sdkdir xorg-server)
 echo "build-driver: xorg-server $(pkg-config --modversion xorg-server)" \
-	"sdkdir $(pkg-config --variable=sdkdir xorg-server)"
+	"sdkdir $sdkdir"
+case $sdkdir in
+"$root"/*) ;;
+*) echo "build-driver: sdkdir $sdkdir is outside $root" >&2; exit 1 ;;
+esac
 
 rm -rf "$builddir"
 meson setup "$builddir" "$srcdir" -Dbuildtype=debug

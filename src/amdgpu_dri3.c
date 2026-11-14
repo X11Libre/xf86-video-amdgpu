@@ -970,88 +970,30 @@ amdgpu_dri3_get_modifiers(ScreenPtr screen, uint32_t format,
 }
 
 #ifdef GBM_BO_WITH_MODIFIERS
-
-Bool
+/*
+ * Modifiers for buffers of this drawable: the enabled CRTCs' scanout
+ * modifiers when the drawable can be page flipped, else none, so the
+ * client falls back to the screen-level list.
+ */
+static int
 amdgpu_dri3_get_drawable_modifiers(DrawablePtr draw, uint32_t format,
 				   uint32_t *num_modifiers, uint64_t **modifiers)
 {
-	ScrnInfoPtr scrn;
-	AMDGPUInfoPtr info;
-	uint64_t *mods;
-	uint32_t count;
-	int asic_family;
+	ScreenPtr screen = draw->pScreen;
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	AMDGPUInfoPtr info = AMDGPUPTR(scrn);
 
-	/* Validate input parameters */
-	if (!draw || !draw->pScreen || !num_modifiers || !modifiers)
-		return FALSE;
+	*num_modifiers = 0;
+	*modifiers = NULL;
 
-	scrn = xf86ScreenToScrn(draw->pScreen);
-	if (!scrn)
-		return FALSE;
+	if (draw->type != DRAWABLE_WINDOW ||
+	    draw->width != screen->width || draw->height != screen->height ||
+	    !scrn->vtSema || !info->allowPageFlip ||
+	    info->sprites_visible > 0 || info->drmmode.dri2_flipping)
+		return TRUE;
 
-	info = AMDGPUPTR(scrn);
-	if (!info)
-		return FALSE;
-
-	asic_family = info->family;
-
-	/* Determine which set of modifiers to return based on ASIC family.
-	 * For drawables, we return the same modifiers as screen-level modifiers.
-	 */
-	if (asic_family >= AMDGPU_FAMILY_GC_12_0_0) {
-#ifdef HAVE_AMD_FMT_MOD_TILE_VER_GFX12
-		static uint64_t gfx12_mods[] = {
-			DRM_FORMAT_MOD_INVALID,
-			AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX12 |
-				AMD_FMT_MOD_TILE_GFX12_64K_2D,
-		};
-		mods = gfx12_mods;
-		count = sizeof(gfx12_mods) / sizeof(gfx12_mods[0]);
-#else
-		/* GFX12 not supported, fall back to invalid modifier */
-		static uint64_t invalid_mods[] = { DRM_FORMAT_MOD_INVALID };
-		mods = invalid_mods;
-		count = 1;
-#endif
-	} else if (asic_family >= AMDGPU_FAMILY_NV) {
-		/* Navi and newer (GFX10+) */
-		static uint64_t gfx10_mods[] = {
-			DRM_FORMAT_MOD_INVALID,
-			AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX10 |
-				AMD_FMT_MOD_TILE_GFX9_64K_S,
-			AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX10 |
-				AMD_FMT_MOD_TILE_GFX9_64K_D,
-		};
-		mods = gfx10_mods;
-		count = sizeof(gfx10_mods) / sizeof(gfx10_mods[0]);
-	} else if (asic_family >= AMDGPU_FAMILY_AI) {
-		/* Vega and newer (GFX9+) */
-		static uint64_t gfx9_mods[] = {
-			DRM_FORMAT_MOD_INVALID,
-			AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX9 |
-				AMD_FMT_MOD_TILE_GFX9_64K_S,
-			AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX9 |
-				AMD_FMT_MOD_TILE_GFX9_64K_D,
-		};
-		mods = gfx9_mods;
-		count = sizeof(gfx9_mods) / sizeof(gfx9_mods[0]);
-	} else {
-		/* For older chips, only support LINEAR */
-		static uint64_t default_mods[] = {
-			DRM_FORMAT_MOD_INVALID,
-		};
-		mods = default_mods;
-		count = sizeof(default_mods) / sizeof(default_mods[0]);
-	}
-
-	/* Allocate and copy modifiers */
-	*modifiers = malloc(count * sizeof(uint64_t));
-	if (!*modifiers)
-		return FALSE;
-
-	memcpy(*modifiers, mods, count * sizeof(uint64_t));
-	*num_modifiers = count;
-
+	*num_modifiers = amdgpu_dri3_scanout_modifiers(scrn, format, TRUE,
+						       modifiers);
 	return TRUE;
 }
 #endif /* GBM_BO_WITH_MODIFIERS */
@@ -1069,6 +1011,9 @@ static dri3_screen_info_rec amdgpu_dri3_screen_info = {
 	.fds_from_pixmap = amdgpu_dri3_fds_from_pixmap,
 	.get_formats = amdgpu_dri3_get_formats,
 	.get_modifiers = amdgpu_dri3_get_modifiers,
+#ifdef GBM_BO_WITH_MODIFIERS
+	.get_drawable_modifiers = amdgpu_dri3_get_drawable_modifiers,
+#endif
 };
 
 Bool

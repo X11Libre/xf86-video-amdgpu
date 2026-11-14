@@ -37,13 +37,6 @@
   ((usage) == AMDGPU_CREATE_PIXMAP_DRI2 ||                                     \
    (usage) == CREATE_PIXMAP_USAGE_SHARED)
 
-#ifndef GLAMOR_NO_DRI3
-#define GLAMOR_NO_DRI3 0
-#define glamor_fd_from_pixmap glamor_dri3_fd_from_pixmap
-#define glamor_pixmap_from_fd glamor_egl_dri3_pixmap_from_fd
-#define glamor_fds_from_pixmap glamor_egl_dri3_fds_from_pixmap
-#endif
-
 #ifndef GLAMOR_INVERTED_Y_AXIS
 #define GLAMOR_INVERTED_Y_AXIS 0
 #endif
@@ -72,12 +65,5 @@ void amdgpu_glamor_exchange_buffers(PixmapPtr src, PixmapPtr dst);
 PixmapPtr amdgpu_glamor_set_pixmap_bo(DrawablePtr drawable, PixmapPtr pixmap);
 
 XF86VideoAdaptorPtr amdgpu_glamor_xv_init(ScreenPtr pScreen, int num_adapt);
-
-/* glamor_fds_from_pixmap declaration - only available when DRI3 is enabled */
-#ifndef GLAMOR_NO_DRI3
-extern int glamor_fds_from_pixmap(ScreenPtr screen, PixmapPtr pixmap, int *fds,
-                                  uint32_t *strides, uint32_t *offsets,
-                                  uint64_t *modifier);
-#endif
 
 #endif /* AMDGPU_GLAMOR_H */

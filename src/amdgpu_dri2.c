@@ -1339,6 +1339,18 @@ blit_fallback:
 	return TRUE;
 }
 
+/* Drop this screen's DRI2InfoCnt reference, if it took one */
+static void amdgpu_dri2_drop_info_count(AMDGPUInfoPtr info)
+{
+	if (!info->dri2.info_counted)
+		return;
+
+	info->dri2.info_counted = FALSE;
+	if (--DRI2InfoCnt == 0)
+		DeleteCallback(&ClientStateCallback,
+			       amdgpu_dri2_client_state_changed, 0);
+}
+
 Bool amdgpu_dri2_screen_init(ScreenPtr pScreen)
 {
 	ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
@@ -1396,6 +1408,7 @@ Bool amdgpu_dri2_screen_init(ScreenPtr pScreen)
 		}
 
 		DRI2InfoCnt++;
+		info->dri2.info_counted = TRUE;
 	}
 
 	dri2_info.version = 9;
@@ -1404,6 +1417,8 @@ Bool amdgpu_dri2_screen_init(ScreenPtr pScreen)
 	dri2_info.CopyRegion2 = amdgpu_dri2_copy_region2;
 
 	info->dri2.enabled = DRI2ScreenInit(pScreen, &dri2_info);
+	if (!info->dri2.enabled)
+		amdgpu_dri2_drop_info_count(info);
 	return info->dri2.enabled;
 }
 
@@ -1412,9 +1427,7 @@ void amdgpu_dri2_close_screen(ScreenPtr pScreen)
 	ScrnInfoPtr pScrn = xf86ScreenToScrn(pScreen);
 	AMDGPUInfoPtr info = AMDGPUPTR(pScrn);
 
-	if (--DRI2InfoCnt == 0)
-		DeleteCallback(&ClientStateCallback,
-			       amdgpu_dri2_client_state_changed, 0);
+	amdgpu_dri2_drop_info_count(info);
 
 	DRI2CloseScreen(pScreen);
 	drmFree(info->dri2.device_name);

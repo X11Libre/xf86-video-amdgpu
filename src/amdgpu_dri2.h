@@ -34,6 +34,7 @@ struct amdgpu_dri2 {
 	Bool available;
 	Bool enabled;
 	char *device_name;
+	Bool info_counted;	/* this screen holds a DRI2InfoCnt reference */
 };
 
 #ifdef DRI2

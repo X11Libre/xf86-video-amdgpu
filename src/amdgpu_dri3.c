@@ -302,7 +302,8 @@ amdgpu_dri3_syncobj_signaled_eventfd(struct dri3_syncobj *syncobj,
     (void)efd;
 }
 
-static struct dri3_syncobj *
+/* Not offered to the server: it ignores timeline points. */
+static _X_UNUSED struct dri3_syncobj *
 amdgpu_dri3_import_syncobj(ClientPtr client, ScreenPtr screen,
                             XID id, int fd)
 {
@@ -1025,8 +1026,6 @@ static dri3_screen_info_rec amdgpu_dri3_screen_info = {
 	.fds_from_pixmap = amdgpu_dri3_fds_from_pixmap,
 	.get_formats = amdgpu_dri3_get_formats,
 	.get_modifiers = amdgpu_dri3_get_modifiers,
-	/* Version 1.4 */
-	.import_syncobj = amdgpu_dri3_import_syncobj,
 };
 
 Bool

@@ -2199,8 +2199,12 @@ Bool AMDGPUEnterVT_KMS(ScrnInfoPtr pScrn)
 
 	pScrn->vtSema = TRUE;
 
-	if (!drmmode_set_desired_modes(pScrn, &info->drmmode, TRUE))
-		return FALSE;
+	/* Without DRM master no mode can be set; that is not fatal */
+	if (!drmmode_set_desired_modes(pScrn, &info->drmmode, TRUE)) {
+		xf86DisableUnusedFunctions(pScrn);
+		RRSetChanged(xf86ScrnToScreen(pScrn));
+		RRTellChanged(xf86ScrnToScreen(pScrn));
+	}
 
 	return TRUE;
 }

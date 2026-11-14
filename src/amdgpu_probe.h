@@ -68,6 +68,7 @@ typedef struct {
 	struct xf86_platform_device *platform_dev;
 	char *render_node;
 	char *busid;
+	Bool universal_planes;	/* DRM_CLIENT_CAP_UNIVERSAL_PLANES is set */
 } AMDGPUEntRec, *AMDGPUEntPtr;
 
 extern void amdgpu_kernel_close_fd(AMDGPUEntPtr pAMDGPUEnt);

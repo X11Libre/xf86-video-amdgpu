@@ -1713,6 +1713,11 @@ static Bool drmmode_set_scanout_pixmap(xf86CrtcPtr crtc, PixmapPtr ppix)
 static void drmmode_crtc_destroy(xf86CrtcPtr crtc)
 {
 	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	uint32_t i;
+
+	for (i = 0; i < drmmode_crtc->num_formats; i++)
+		free(drmmode_crtc->formats[i].modifiers);
+	free(drmmode_crtc->formats);
 
 	drmModeFreeCrtc(drmmode_crtc->mode_crtc);
 
@@ -1806,6 +1811,112 @@ static void drmmode_crtc_cm_init(int drm_fd, xf86CrtcPtr crtc)
 	}
 }
 
+/* Add (format, modifier) to the CRTC's list; drop it on allocation failure */
+static void
+drmmode_crtc_add_format_modifier(drmmode_crtc_private_ptr drmmode_crtc,
+				 uint32_t format, uint64_t modifier)
+{
+	drmmode_format_ptr f = NULL;
+	uint64_t *mods;
+	uint32_t i;
+
+	for (i = 0; i < drmmode_crtc->num_formats; i++) {
+		if (drmmode_crtc->formats[i].format == format) {
+			f = &drmmode_crtc->formats[i];
+			break;
+		}
+	}
+
+	if (!f) {
+		drmmode_format_ptr formats =
+			realloc(drmmode_crtc->formats,
+				(drmmode_crtc->num_formats + 1) * sizeof(*formats));
+
+		if (!formats)
+			return;
+		drmmode_crtc->formats = formats;
+		f = &formats[drmmode_crtc->num_formats++];
+		f->format = format;
+		f->num_modifiers = 0;
+		f->modifiers = NULL;
+	}
+
+	mods = realloc(f->modifiers, (f->num_modifiers + 1) * sizeof(*mods));
+	if (!mods)
+		return;
+	f->modifiers = mods;
+	mods[f->num_modifiers++] = modifier;
+}
+
+/* Find the CRTC's primary plane and read its IN_FORMATS property */
+static void
+drmmode_crtc_init_primary_plane(xf86CrtcPtr crtc, int num)
+{
+	AMDGPUEntPtr pAMDGPUEnt = AMDGPUEntPriv(crtc->scrn);
+	drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+	int fd = pAMDGPUEnt->fd;
+	drmModePlaneResPtr res;
+	uint32_t i, j;
+
+	if (!pAMDGPUEnt->universal_planes)
+		return;
+
+	res = drmModeGetPlaneResources(fd);
+	if (!res)
+		return;
+
+	for (i = 0; i < res->count_planes && !drmmode_crtc->primary_plane_id; i++) {
+		drmModePlanePtr plane = drmModeGetPlane(fd, res->planes[i]);
+		drmModeObjectPropertiesPtr props;
+		uint64_t type = 0, in_formats = 0;
+		Bool has_type = FALSE;
+
+		if (!plane)
+			continue;
+		if (!(plane->possible_crtcs & (1u << num))) {
+			drmModeFreePlane(plane);
+			continue;
+		}
+
+		props = drmModeObjectGetProperties(fd, plane->plane_id,
+						   DRM_MODE_OBJECT_PLANE);
+		for (j = 0; props && j < props->count_props; j++) {
+			drmModePropertyPtr prop = drmModeGetProperty(fd, props->props[j]);
+
+			if (!prop)
+				continue;
+			if (!strcmp(prop->name, "type")) {
+				type = props->prop_values[j];
+				has_type = TRUE;
+			} else if (!strcmp(prop->name, "IN_FORMATS")) {
+				in_formats = props->prop_values[j];
+			}
+			drmModeFreeProperty(prop);
+		}
+		drmModeFreeObjectProperties(props);
+
+		if (has_type && type == DRM_PLANE_TYPE_PRIMARY) {
+			drmModePropertyBlobPtr blob = NULL;
+
+			drmmode_crtc->primary_plane_id = plane->plane_id;
+			if (in_formats)
+				blob = drmModeGetPropertyBlob(fd, in_formats);
+			if (blob) {
+				drmModeFormatModifierIterator iter = { 0 };
+
+				while (drmModeFormatModifierBlobIterNext(blob, &iter))
+					drmmode_crtc_add_format_modifier(drmmode_crtc,
+									 iter.fmt,
+									 iter.mod);
+				drmModeFreePropertyBlob(blob);
+			}
+		}
+		drmModeFreePlane(plane);
+	}
+
+	drmModeFreePlaneResources(res);
+}
+
 static unsigned int
 drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res, int num)
 {
@@ -1828,6 +1939,7 @@ drmmode_crtc_init(ScrnInfoPtr pScrn, drmmode_ptr drmmode, drmModeResPtr mode_res
 
 	drmmode_crtc_cm_init(pAMDGPUEnt->fd, crtc);
 	drmmode_crtc_vrr_init(pAMDGPUEnt->fd, crtc);
+	drmmode_crtc_init_primary_plane(crtc, num);
 
 	/* Mark num'th crtc as in use on this device. */
 	pAMDGPUEnt->assigned_crtcs |= (1 << num);
@@ -2975,16 +3087,31 @@ drmmode_create_lease(RRLeasePtr lease, int *fd)
 	drmmode_lease_private_ptr lease_private;
 	int noutput = lease->numOutputs;
 	int ncrtc = lease->numCrtcs;
+	/* With universal planes the kernel needs each CRTC's primary plane too */
+	size_t per_crtc = pAMDGPUEnt->universal_planes ? 2 : 1;
 	uint32_t *objects;
 	size_t nobjects;
 	int lease_fd;
 	int c, o;
 	int i;
 
-	nobjects = ncrtc + noutput;
-	if (nobjects == 0 || nobjects > (SIZE_MAX / 4) ||
-	    ncrtc > (SIZE_MAX - noutput))
+	if (ncrtc < 0 || noutput < 0)
 		return BadValue;
+	nobjects = (size_t)ncrtc * per_crtc + noutput;
+	if (nobjects == 0 || nobjects > (SIZE_MAX / 4))
+		return BadValue;
+
+	for (c = 0; c < ncrtc && per_crtc == 2; c++) {
+		xf86CrtcPtr crtc = lease->crtcs[c]->devPrivate;
+		drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+		if (!drmmode_crtc->primary_plane_id) {
+			xf86DrvMsg(scrn->scrnIndex, X_WARNING,
+				   "Cannot lease CRTC %u: no primary plane\n",
+				   drmmode_crtc->mode_crtc->crtc_id);
+			return BadValue;
+		}
+	}
 
 	lease_private = calloc(1, sizeof (drmmode_lease_private_rec));
 	if (!lease_private)
@@ -3004,6 +3131,8 @@ drmmode_create_lease(RRLeasePtr lease, int *fd)
 		drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
 
 		objects[i++] = drmmode_crtc->mode_crtc->crtc_id;
+		if (per_crtc == 2)
+			objects[i++] = drmmode_crtc->primary_plane_id;
 	}
 
 	/* Add connector ids */

@@ -207,6 +207,14 @@ static Bool amdgpu_open_drm_master(ScrnInfoPtr pScrn,
 		return FALSE;
 	}
 
+	/* Only adds primary and cursor planes to the plane list */
+	pAMDGPUEnt->universal_planes =
+		drmSetClientCap(pAMDGPUEnt->fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1) == 0;
+	if (!pAMDGPUEnt->universal_planes)
+		xf86DrvMsgVerb(pScrn->scrnIndex, X_INFO, AMDGPU_LOGLEVEL_DEBUG,
+			       "[drm] universal planes not available: %s\n",
+			       strerror(errno));
+
 	return TRUE;
 }
 

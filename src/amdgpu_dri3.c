@@ -849,9 +849,78 @@ amdgpu_dri3_get_formats(ScreenPtr screen, unsigned int *num_formats,
 	return count;
 }
 
+/* Scanout planes take ARGB buffers through their opaque format */
+static uint32_t
+amdgpu_dri3_opaque_format(uint32_t format)
+{
+	switch (format) {
+	case DRM_FORMAT_ARGB8888:
+		return DRM_FORMAT_XRGB8888;
+	case DRM_FORMAT_ARGB2101010:
+		return DRM_FORMAT_XRGB2101010;
+	default:
+		return format;
+	}
+}
+
 /*
- * Returns supported modifiers for a given format.
- * This includes LINEAR (DRM_FORMAT_MOD_INVALID) and AMD-specific tiled modifiers.
+ * Union of the modifiers the CRTCs' primary planes accept for format (only
+ * enabled CRTCs if enabled_only). Returns the count; *mods is malloc()ed,
+ * NULL when the count is 0.
+ */
+static uint32_t
+amdgpu_dri3_scanout_modifiers(ScrnInfoPtr scrn, uint32_t format,
+			      Bool enabled_only, uint64_t **mods)
+{
+	xf86CrtcConfigPtr xf86_config = XF86_CRTC_CONFIG_PTR(scrn);
+	uint32_t count = 0, i, j, k, l;
+
+	*mods = NULL;
+	format = amdgpu_dri3_opaque_format(format);
+
+	for (i = 0; i < xf86_config->num_crtc; i++) {
+		xf86CrtcPtr crtc = xf86_config->crtc[i];
+		drmmode_crtc_private_ptr drmmode_crtc = crtc->driver_private;
+
+		if (enabled_only && !crtc->enabled)
+			continue;
+
+		for (j = 0; j < drmmode_crtc->num_formats; j++) {
+			drmmode_format_ptr f = &drmmode_crtc->formats[j];
+
+			if (f->format != format)
+				continue;
+
+			for (k = 0; k < f->num_modifiers; k++) {
+				uint64_t *grown;
+
+				for (l = 0; l < count; l++)
+					if ((*mods)[l] == f->modifiers[k])
+						break;
+				if (l < count)
+					continue;
+
+				grown = realloc(*mods, (count + 1) * sizeof(**mods));
+				if (!grown)
+					return count;
+				*mods = grown;
+				(*mods)[count++] = f->modifiers[k];
+			}
+		}
+	}
+
+	return count;
+}
+
+typedef Bool (*amdgpu_glamor_get_modifiers_proc)(ScreenPtr screen,
+						  uint32_t format,
+						  uint32_t *num_modifiers,
+						  uint64_t **modifiers);
+
+/*
+ * Modifiers clients may use for buffers of this format: glamor's list (what
+ * the GPU renders and samples) where glamor exports it (25.1 and later),
+ * else LINEAR plus what the scanout planes accept.
  */
 static int
 amdgpu_dri3_get_modifiers(ScreenPtr screen, uint32_t format,
@@ -859,78 +928,44 @@ amdgpu_dri3_get_modifiers(ScreenPtr screen, uint32_t format,
 {
 	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
 	AMDGPUInfoPtr info = AMDGPUPTR(scrn);
-	static uint64_t default_modifiers[] = {
-		/* LINEAR - no tiling */
-		DRM_FORMAT_MOD_INVALID,
-	};
-	static uint64_t amd_tiled_modifiers[] = {
-		/* LINEAR - no tiling */
-		DRM_FORMAT_MOD_INVALID,
-		/* AMD GFX9 64K_S tiled */
-		AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX9 |
-			AMD_FMT_MOD_TILE_GFX9_64K_S,
-		/* AMD GFX9 64K_D tiled */
-		AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX9 |
-			AMD_FMT_MOD_TILE_GFX9_64K_D,
-	};
-	static uint64_t amd_tiled_modifiers_gfx10[] = {
-		/* LINEAR - no tiling */
-		DRM_FORMAT_MOD_INVALID,
-		/* AMD GFX10 64K_S tiled */
-		AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX10 |
-			AMD_FMT_MOD_TILE_GFX9_64K_S,
-		/* AMD GFX10 64K_D tiled */
-		AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX10 |
-			AMD_FMT_MOD_TILE_GFX9_64K_D,
-	};
-#ifdef HAVE_AMD_FMT_MOD_TILE_VER_GFX12
-	static uint64_t amd_tiled_modifiers_gfx12[] = {
-		/* LINEAR - no tiling */
-		DRM_FORMAT_MOD_INVALID,
-		/* AMD GFX12 64K_2D tiled */
-		AMD_FMT_MOD | AMD_FMT_MOD_TILE_VER_GFX12 |
-			AMD_FMT_MOD_TILE_GFX12_64K_2D,
-	};
-#endif
-	uint64_t *mods;
-	uint32_t count;
-	int asic_family;
+	uint64_t *scanout;
+	uint32_t num_scanout, count, i;
 
-	/* Get the ASIC family to determine which modifiers to advertise */
-	asic_family = info->family;
+	*num_modifiers = 0;
+	*modifiers = NULL;
 
-	/* Determine which set of modifiers to return based on ASIC family */
-	if (asic_family >= AMDGPU_FAMILY_GC_12_0_0) {
-#ifdef HAVE_AMD_FMT_MOD_TILE_VER_GFX12
-		mods = amd_tiled_modifiers_gfx12;
-		count = sizeof(amd_tiled_modifiers_gfx12) / sizeof(amd_tiled_modifiers_gfx12[0]);
-#else
-		/* GFX12 not supported, fall back to GFX10 modifiers */
-		mods = amd_tiled_modifiers_gfx10;
-		count = sizeof(amd_tiled_modifiers_gfx10) / sizeof(amd_tiled_modifiers_gfx10[0]);
-#endif
-	} else if (asic_family >= AMDGPU_FAMILY_NV) {
-		/* Navi and newer (GFX10+) */
-		mods = amd_tiled_modifiers_gfx10;
-		count = sizeof(amd_tiled_modifiers_gfx10) / sizeof(amd_tiled_modifiers_gfx10[0]);
-	} else if (asic_family >= AMDGPU_FAMILY_AI) {
-		/* Vega and newer (GFX9+) */
-		mods = amd_tiled_modifiers;
-		count = sizeof(amd_tiled_modifiers) / sizeof(amd_tiled_modifiers[0]);
-	} else {
-		/* For older chips, only support LINEAR */
-		mods = default_modifiers;
-		count = sizeof(default_modifiers) / sizeof(default_modifiers[0]);
+	if (info->use_glamor) {
+		amdgpu_glamor_get_modifiers_proc get_modifiers =
+			(amdgpu_glamor_get_modifiers_proc)
+			LoaderSymbol("glamor_get_modifiers");
+
+		if (get_modifiers &&
+		    get_modifiers(screen, format, num_modifiers, modifiers) &&
+		    *num_modifiers > 0)
+			return *num_modifiers;
+
+		free(*modifiers);
+		*num_modifiers = 0;
+		*modifiers = NULL;
 	}
 
-	/* Allocate and copy modifiers */
-	*modifiers = malloc(count * sizeof(uint64_t));
-	if (!*modifiers)
+	num_scanout = amdgpu_dri3_scanout_modifiers(scrn, format, FALSE, &scanout);
+	*modifiers = malloc((num_scanout + 1) * sizeof(**modifiers));
+	if (!*modifiers) {
+		free(scanout);
 		return 0;
+	}
 
-	memcpy(*modifiers, mods, count * sizeof(uint64_t));
+	count = 0;
+	(*modifiers)[count++] = DRM_FORMAT_MOD_LINEAR;
+	for (i = 0; i < num_scanout; i++) {
+		if (scanout[i] != DRM_FORMAT_MOD_LINEAR &&
+		    scanout[i] != DRM_FORMAT_MOD_INVALID)
+			(*modifiers)[count++] = scanout[i];
+	}
+	free(scanout);
+
 	*num_modifiers = count;
-
 	return count;
 }
 

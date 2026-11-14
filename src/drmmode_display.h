@@ -92,6 +92,13 @@ struct drmmode_fb {
 	uint32_t handle;
 };
 
+/* One format of a plane's IN_FORMATS property and its modifiers */
+typedef struct {
+	uint32_t format;
+	uint32_t num_modifiers;
+	uint64_t *modifiers;
+} drmmode_format_rec, *drmmode_format_ptr;
+
 enum drmmode_scanout_status {
 	DRMMODE_SCANOUT_OK,
 	DRMMODE_SCANOUT_FLIP_FAILED = 1u << 0,
@@ -144,6 +151,11 @@ typedef struct {
 	struct drm_color_lut *degamma_lut;
 	struct drm_color_ctm *ctm;
 	struct drm_color_lut *gamma_lut;
+
+	/* Primary plane (0 without universal planes) and its IN_FORMATS */
+	uint32_t primary_plane_id;
+	uint32_t num_formats;
+	drmmode_format_ptr formats;
 } drmmode_crtc_private_rec, *drmmode_crtc_private_ptr;
 
 typedef struct {

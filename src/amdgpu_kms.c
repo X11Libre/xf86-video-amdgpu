@@ -1933,7 +1933,7 @@ Bool AMDGPUScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
 	if (!amdgpu_setup_kernel_mem(pScreen)) {
 		xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 			   "amdgpu_setup_kernel_mem failed\n");
-		return FALSE;
+		goto fail;
 	}
 	front_ptr = info->front_buffer->cpu_ptr;
 
@@ -1944,14 +1944,14 @@ Bool AMDGPUScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
 		if (!info->fb_shadow) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				   "Failed to allocate shadow framebuffer\n");
-			return FALSE;
+			goto fail;
 		} else {
 			if (!fbScreenInit(pScreen, info->fb_shadow,
 					  pScrn->virtualX, pScrn->virtualY,
 					  pScrn->xDpi, pScrn->yDpi,
 					  pScrn->displayWidth,
 					  pScrn->bitsPerPixel))
-				return FALSE;
+				goto fail;
 		}
 	}
 
@@ -1961,7 +1961,7 @@ Bool AMDGPUScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
 				  pScrn->virtualX, pScrn->virtualY,
 				  pScrn->xDpi, pScrn->yDpi, pScrn->displayWidth,
 				  pScrn->bitsPerPixel))
-			return FALSE;
+			goto fail;
 	}
 
 	xf86SetBlackWhitePixels(pScreen);
@@ -2062,7 +2062,7 @@ Bool AMDGPUScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
 	xf86DPMSInit(pScreen, xf86DPMSSet, 0);
 
 	if (!AMDGPUCursorInit_KMS(pScreen))
-		return FALSE;
+		goto fail;
 
 	/* DGA setup */
 #ifdef XFreeXDGA
@@ -2082,7 +2082,7 @@ Bool AMDGPUScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
 		if (!shadowSetup(pScreen)) {
 			xf86DrvMsg(pScrn->scrnIndex, X_ERROR,
 				   "Shadowfb initialization failed\n");
-			return FALSE;
+			goto fail;
 		}
 	}
 	pScrn->pScreen = pScreen;
@@ -2112,14 +2112,14 @@ Bool AMDGPUScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
 	pScreen->SyncSharedPixmap = amdgpu_sync_shared_pixmap;
 
 	if (!xf86CrtcScreenInit(pScreen))
-		return FALSE;
+		goto fail;
 
 	/* Wrap pointer motion to flip touch screen around */
 //    info->PointerMoved = pScrn->PointerMoved;
 //    pScrn->PointerMoved = AMDGPUPointerMoved;
 
 	if (!drmmode_setup_colormap(pScreen, pScrn))
-		return FALSE;
+		goto fail;
 
 	/* Note unused options */
 	if (serverGeneration == 1)
@@ -2144,6 +2144,13 @@ Bool AMDGPUScreenInit_KMS(ScreenPtr pScreen, int argc, char **argv)
 		       "AMDGPUScreenInit finished\n");
 
 	return TRUE;
+
+fail:
+	xf86DrvMsg(pScrn->scrnIndex, X_ERROR, "AMDGPUScreenInit failed\n");
+	if (info->dri2.enabled)
+		amdgpu_dri2_close_screen(pScreen);
+	amdgpu_drop_drm_master(pScrn);
+	return FALSE;
 }
 
 Bool AMDGPUEnterVT_KMS(ScrnInfoPtr pScrn)

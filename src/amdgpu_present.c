@@ -195,6 +195,47 @@ amdgpu_present_flush(WindowPtr window)
 	amdgpu_glamor_flush(xf86ScreenToScrn(window->drawable.pScreen));
 }
 
+/* Local types, so the driver still builds against servers without
+ * present_screen_set_flush_fenced; both functions are looked up at run time.
+ */
+typedef int (*amdgpu_flush_fenced_proc)(WindowPtr window);
+typedef void (*amdgpu_set_flush_fenced_proc)(ScreenPtr screen,
+					     amdgpu_flush_fenced_proc func);
+typedef int (*amdgpu_flush_fence_fd_proc)(ScreenPtr screen);
+
+static amdgpu_set_flush_fenced_proc amdgpu_set_flush_fenced;
+
+/*
+ * Flush rendering for an explicitly synchronized copy. Returns a sync_file
+ * fd that signals when it completes, or -1 once it has completed.
+ */
+static int
+amdgpu_present_flush_fenced(WindowPtr window)
+{
+	static amdgpu_flush_fence_fd_proc flush_fence_fd;
+	static Bool looked_up;
+	ScreenPtr screen = window->drawable.pScreen;
+	ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+	AMDGPUInfoPtr info = AMDGPUPTR(scrn);
+	int fd = -1;
+
+	if (!info->use_glamor)
+		return -1;
+
+	if (!looked_up) {
+		flush_fence_fd = LoaderSymbol("glamor_egl_flush_fence_fd");
+		looked_up = TRUE;
+	}
+
+	amdgpu_glamor_flush(scrn);
+	if (flush_fence_fd)
+		fd = flush_fence_fd(screen);
+	if (fd < 0)
+		amdgpu_glamor_finish(scrn);
+
+	return fd;
+}
+
 /*
  * Test to see if unflipping is possible
  *
@@ -519,6 +560,8 @@ amdgpu_present_screen_init(ScreenPtr screen)
 		info->can_async_flip = TRUE;
 	}
 
+	amdgpu_set_flush_fenced = LoaderSymbol("present_screen_set_flush_fenced");
+
 	if (!present_screen_init(screen, &amdgpu_present_screen_info)) {
 		xf86DrvMsg(xf86ScreenToScrn(screen)->scrnIndex, X_WARNING,
 			   "Present extension disabled because present_screen_init failed\n");
@@ -527,6 +570,15 @@ amdgpu_present_screen_init(ScreenPtr screen)
 
 	xf86DrvMsg(xf86ScreenToScrn(screen)->scrnIndex, X_INFO,
 		   "Present extension enabled\n");
+
+	if (amdgpu_set_flush_fenced) {
+		amdgpu_set_flush_fenced(screen, amdgpu_present_flush_fenced);
+		xf86DrvMsg(scrn->scrnIndex, X_INFO,
+			   "Present fenced flush registered\n");
+	} else {
+		xf86DrvMsg(scrn->scrnIndex, X_INFO,
+			   "Present fenced flush not supported by this server\n");
+	}
 
 	return TRUE;
 }

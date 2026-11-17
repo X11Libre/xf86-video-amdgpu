@@ -40,6 +40,7 @@
 #include <amdgpu_drm.h>
 #include <unistd.h>
 #include <poll.h>
+#include <sys/eventfd.h>
 
 /* DRI3 Sync Object support (version 1.4) */
 
@@ -130,227 +131,229 @@ amdgpu_tiling_info_to_modifier(uint64_t tiling_info, int asic_family)
 
 struct amdgpu_dri3_syncobj {
     struct dri3_syncobj base;
-    uint32_t syncobj_handle;  /* DRM syncobj handle */
-    Bool owns_handle;         /* Whether we own and should destroy the handle */
+    uint32_t syncobj_handle;  /* DRM timeline syncobj handle */
 };
+
+enum amdgpu_dri3_syncobj_op {
+    SYNCOBJ_OP_IMPORT,
+    SYNCOBJ_OP_WAIT,
+    SYNCOBJ_OP_EXPORT_FENCE,
+    SYNCOBJ_OP_IMPORT_FENCE,
+    SYNCOBJ_OP_SIGNAL,
+    SYNCOBJ_OP_EVENTFD,
+    SYNCOBJ_OP_COUNT
+};
+
+/* The first failure of each operation is a warning, later ones are debug
+ * messages: these run for every presented frame.
+ */
+static void
+amdgpu_dri3_syncobj_warn(ScreenPtr screen, enum amdgpu_dri3_syncobj_op op,
+                         const char *call, int err)
+{
+    static Bool warned[SYNCOBJ_OP_COUNT];
+    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
+
+    xf86DrvMsgVerb(scrn->scrnIndex, X_WARNING,
+                   warned[op] ? AMDGPU_LOGLEVEL_DEBUG : 1,
+                   "DRI3 sync object: %s failed: %s\n", call, strerror(err));
+    warned[op] = TRUE;
+}
+
+static int
+amdgpu_dri3_syncobj_drm_fd(struct dri3_syncobj *syncobj)
+{
+    return AMDGPUEntPriv(xf86ScreenToScrn(syncobj->screen))->fd;
+}
+
+static uint32_t
+amdgpu_dri3_syncobj_handle(struct dri3_syncobj *syncobj)
+{
+    return ((struct amdgpu_dri3_syncobj *)syncobj)->syncobj_handle;
+}
 
 static void
 amdgpu_dri3_syncobj_free(struct dri3_syncobj *syncobj)
 {
-    struct amdgpu_dri3_syncobj *amdgpu_syncobj =
-        (struct amdgpu_dri3_syncobj *)syncobj;
-    ScrnInfoPtr scrn = xf86ScreenToScrn(syncobj->screen);
-    AMDGPUEntPtr pAMDGPUEnt = AMDGPUEntPriv(scrn);
-    struct drm_syncobj_destroy destroy_args;
+    uint32_t handle = amdgpu_dri3_syncobj_handle(syncobj);
 
-    if (amdgpu_syncobj->owns_handle && amdgpu_syncobj->syncobj_handle != 0) {
-        destroy_args.handle = amdgpu_syncobj->syncobj_handle;
-        drmIoctl(pAMDGPUEnt->fd, DRM_IOCTL_SYNCOBJ_DESTROY, &destroy_args);
-    }
+    if (handle)
+        drmSyncobjDestroy(amdgpu_dri3_syncobj_drm_fd(syncobj), handle);
 
-    free(amdgpu_syncobj);
+    free(syncobj);
+}
+
+/* TRUE once the point has a fence (WAIT_AVAILABLE) or has signalled
+ * (WAIT_FOR_SUBMIT); ETIME just means "not yet".
+ */
+static Bool
+amdgpu_dri3_syncobj_check(struct dri3_syncobj *syncobj, uint64_t point,
+                          uint32_t flags)
+{
+    uint32_t handle = amdgpu_dri3_syncobj_handle(syncobj);
+
+    if (drmSyncobjTimelineWait(amdgpu_dri3_syncobj_drm_fd(syncobj),
+                               &handle, &point, 1, 0, flags, NULL) == 0)
+        return TRUE;
+
+    if (errno != ETIME)
+        amdgpu_dri3_syncobj_warn(syncobj->screen, SYNCOBJ_OP_WAIT,
+                                 "drmSyncobjTimelineWait", errno);
+    return FALSE;
 }
 
 static Bool
 amdgpu_dri3_syncobj_has_fence(struct dri3_syncobj *syncobj, uint64_t point)
 {
-    struct amdgpu_dri3_syncobj *amdgpu_syncobj =
-        (struct amdgpu_dri3_syncobj *)syncobj;
-    ScrnInfoPtr scrn = xf86ScreenToScrn(syncobj->screen);
-    AMDGPUEntPtr pAMDGPUEnt = AMDGPUEntPriv(scrn);
-    struct drm_syncobj_handle handle_args = { 0 };
-    int ret;
-
-    (void)point;
-
-    /* Try to export the syncobj to see if it has a fence */
-    handle_args.handle = amdgpu_syncobj->syncobj_handle;
-    handle_args.flags = DRM_SYNCOBJ_HANDLE_TO_FD_FLAGS_EXPORT_SYNC_FILE;
-    handle_args.fd = -1;
-
-    ret = drmIoctl(pAMDGPUEnt->fd, DRM_IOCTL_SYNCOBJ_HANDLE_TO_FD, &handle_args);
-    if (ret == 0) {
-        /* Has a fence, close the fd we just got */
-        close(handle_args.fd);
-        return TRUE;
-    }
-
-    return FALSE;
+    return amdgpu_dri3_syncobj_check(syncobj, point,
+                                     DRM_SYNCOBJ_WAIT_FLAGS_WAIT_AVAILABLE);
 }
 
 static Bool
 amdgpu_dri3_syncobj_is_signaled(struct dri3_syncobj *syncobj, uint64_t point)
 {
-    struct amdgpu_dri3_syncobj *amdgpu_syncobj =
-        (struct amdgpu_dri3_syncobj *)syncobj;
-    ScrnInfoPtr scrn = xf86ScreenToScrn(syncobj->screen);
-    AMDGPUEntPtr pAMDGPUEnt = AMDGPUEntPriv(scrn);
-    struct drm_syncobj_wait wait_args;
-    int ret;
-
-    /* Set up wait args for non-blocking check */
-    wait_args.handles = (uint64_t)(uintptr_t)&amdgpu_syncobj->syncobj_handle;
-    wait_args.count_handles = 1;
-    wait_args.timeout_nsec = 0;  /* Non-blocking */
-    wait_args.flags = 0;
-    wait_args.first_signaled = 0;
-    wait_args.pad = 0;
-
-    (void)point;
-
-    ret = drmIoctl(pAMDGPUEnt->fd, DRM_IOCTL_SYNCOBJ_WAIT, &wait_args);
-
-    /* Return TRUE if wait succeeded (fence is signaled) or ioctl failed in a way
-     * that indicates the fence is not present (ENOENT means handle not found) */
-    if (ret == 0)
-        return TRUE;  /* signaled */
-    if (ret == -1 && (errno == ENOENT || errno == EINVAL))
-        return TRUE;  /* no fence means signaled */
-    return FALSE;  /* not signaled */
+    return amdgpu_dri3_syncobj_check(syncobj, point,
+                                     DRM_SYNCOBJ_WAIT_FLAGS_WAIT_FOR_SUBMIT);
 }
 
+/* Returns a sync_file fd for the point, owned by the caller, or -1. */
 static int
 amdgpu_dri3_syncobj_export_fence(struct dri3_syncobj *syncobj, uint64_t point)
 {
-    struct amdgpu_dri3_syncobj *amdgpu_syncobj =
-        (struct amdgpu_dri3_syncobj *)syncobj;
-    ScrnInfoPtr scrn = xf86ScreenToScrn(syncobj->screen);
-    AMDGPUEntPtr pAMDGPUEnt = AMDGPUEntPriv(scrn);
-    struct drm_syncobj_handle handle_args = { 0 };
-    int ret;
+    int drm_fd = amdgpu_dri3_syncobj_drm_fd(syncobj);
+    uint32_t temp;
+    int fd = -1;
 
-    (void)point;
-
-    handle_args.handle = amdgpu_syncobj->syncobj_handle;
-    handle_args.flags = DRM_SYNCOBJ_HANDLE_TO_FD_FLAGS_EXPORT_SYNC_FILE;
-    handle_args.fd = -1;
-
-    ret = drmIoctl(pAMDGPUEnt->fd, DRM_IOCTL_SYNCOBJ_HANDLE_TO_FD, &handle_args);
-    if (ret != 0)
+    if (drmSyncobjCreate(drm_fd, 0, &temp)) {
+        amdgpu_dri3_syncobj_warn(syncobj->screen, SYNCOBJ_OP_EXPORT_FENCE,
+                                 "drmSyncobjCreate", errno);
         return -1;
+    }
 
-    return handle_args.fd;
-}
+    if (drmSyncobjTransfer(drm_fd, temp, 0,
+                           amdgpu_dri3_syncobj_handle(syncobj), point, 0))
+        amdgpu_dri3_syncobj_warn(syncobj->screen, SYNCOBJ_OP_EXPORT_FENCE,
+                                 "drmSyncobjTransfer", errno);
+    else if (drmSyncobjExportSyncFile(drm_fd, temp, &fd)) {
+        amdgpu_dri3_syncobj_warn(syncobj->screen, SYNCOBJ_OP_EXPORT_FENCE,
+                                 "drmSyncobjExportSyncFile", errno);
+        fd = -1;
+    }
 
-static void
-amdgpu_dri3_syncobj_import_fence(struct dri3_syncobj *syncobj, uint64_t point, int fd)
-{
-    struct amdgpu_dri3_syncobj *amdgpu_syncobj =
-        (struct amdgpu_dri3_syncobj *)syncobj;
-    ScrnInfoPtr scrn = xf86ScreenToScrn(syncobj->screen);
-    AMDGPUEntPtr pAMDGPUEnt = AMDGPUEntPriv(scrn);
-    struct drm_syncobj_handle handle_args;
-    int ret;
-
-    (void)point;
-
-    /* First reset the syncobj */
-    struct drm_syncobj_array reset_args = {
-        .handles = (uint64_t)(uintptr_t)&amdgpu_syncobj->syncobj_handle,
-        .count_handles = 1,
-    };
-    drmIoctl(pAMDGPUEnt->fd, DRM_IOCTL_SYNCOBJ_RESET, &reset_args);
-
-    /* Then import the fence fd into the syncobj */
-    memset(&handle_args, 0, sizeof(handle_args));
-    handle_args.handle = amdgpu_syncobj->syncobj_handle;
-    handle_args.flags = DRM_SYNCOBJ_FD_TO_HANDLE_FLAGS_IMPORT_SYNC_FILE;
-    handle_args.fd = fd;
-
-    ret = drmIoctl(pAMDGPUEnt->fd, DRM_IOCTL_SYNCOBJ_FD_TO_HANDLE, &handle_args);
-    (void)ret;
+    drmSyncobjDestroy(drm_fd, temp);
+    return fd;
 }
 
 static void
 amdgpu_dri3_syncobj_signal(struct dri3_syncobj *syncobj, uint64_t point)
 {
-    struct amdgpu_dri3_syncobj *amdgpu_syncobj =
-        (struct amdgpu_dri3_syncobj *)syncobj;
-    ScrnInfoPtr scrn = xf86ScreenToScrn(syncobj->screen);
-    AMDGPUEntPtr pAMDGPUEnt = AMDGPUEntPriv(scrn);
-    struct drm_syncobj_array signal_args;
+    uint32_t handle = amdgpu_dri3_syncobj_handle(syncobj);
 
-    (void)point;
+    if (drmSyncobjTimelineSignal(amdgpu_dri3_syncobj_drm_fd(syncobj),
+                                 &handle, &point, 1))
+        amdgpu_dri3_syncobj_warn(syncobj->screen, SYNCOBJ_OP_SIGNAL,
+                                 "drmSyncobjTimelineSignal", errno);
+}
 
-    signal_args.handles = (uint64_t)(uintptr_t)&amdgpu_syncobj->syncobj_handle;
-    signal_args.count_handles = 1;
+/* Attaches the sync_file fence_fd to the point; takes ownership of fence_fd.
+ * fence_fd -1 means the work is already complete.
+ */
+static void
+amdgpu_dri3_syncobj_import_fence(struct dri3_syncobj *syncobj, uint64_t point,
+                                 int fence_fd)
+{
+    int drm_fd = amdgpu_dri3_syncobj_drm_fd(syncobj);
+    struct pollfd pfd = { .fd = fence_fd, .events = POLLIN };
+    uint32_t temp;
+    int ret;
 
-    drmIoctl(pAMDGPUEnt->fd, DRM_IOCTL_SYNCOBJ_SIGNAL, &signal_args);
+    if (fence_fd < 0) {
+        amdgpu_dri3_syncobj_signal(syncobj, point);
+        return;
+    }
+
+    ret = drmSyncobjCreate(drm_fd, 0, &temp);
+    if (ret) {
+        amdgpu_dri3_syncobj_warn(syncobj->screen, SYNCOBJ_OP_IMPORT_FENCE,
+                                 "drmSyncobjCreate", errno);
+    } else {
+        ret = drmSyncobjImportSyncFile(drm_fd, temp, fence_fd);
+        if (ret)
+            amdgpu_dri3_syncobj_warn(syncobj->screen, SYNCOBJ_OP_IMPORT_FENCE,
+                                     "drmSyncobjImportSyncFile", errno);
+        else {
+            ret = drmSyncobjTransfer(drm_fd, amdgpu_dri3_syncobj_handle(syncobj),
+                                     point, temp, 0, 0);
+            if (ret)
+                amdgpu_dri3_syncobj_warn(syncobj->screen,
+                                         SYNCOBJ_OP_IMPORT_FENCE,
+                                         "drmSyncobjTransfer", errno);
+        }
+        drmSyncobjDestroy(drm_fd, temp);
+    }
+
+    if (ret) {
+        /* The client must still see the point signalled: wait for the
+         * fence on the CPU instead.
+         */
+        while (poll(&pfd, 1, -1) < 0 && (errno == EINTR || errno == EAGAIN))
+            ;
+        amdgpu_dri3_syncobj_signal(syncobj, point);
+    }
+
+    close(fence_fd);
+}
+
+static void
+amdgpu_dri3_syncobj_eventfd(struct dri3_syncobj *syncobj, uint64_t point,
+                            int efd, uint32_t flags)
+{
+    if (drmSyncobjEventfd(amdgpu_dri3_syncobj_drm_fd(syncobj),
+                          amdgpu_dri3_syncobj_handle(syncobj), point, efd,
+                          flags) == 0)
+        return;
+
+    amdgpu_dri3_syncobj_warn(syncobj->screen, SYNCOBJ_OP_EVENTFD,
+                             "drmSyncobjEventfd", errno);
+    /* Wake the waiter anyway; it checks the point again. */
+    if (eventfd_write(efd, 1) != 0)
+        amdgpu_dri3_syncobj_warn(syncobj->screen, SYNCOBJ_OP_EVENTFD,
+                                 "eventfd_write", errno);
 }
 
 static void
 amdgpu_dri3_syncobj_submitted_eventfd(struct dri3_syncobj *syncobj,
                                       uint64_t point, int efd)
 {
-    /* Called when client submits an eventfd for signaling notification.
-     * For AMDGPU, we handle this in the wait ioctl with eventfd support.
-     */
-    (void)syncobj;
-    (void)point;
-    (void)efd;
+    amdgpu_dri3_syncobj_eventfd(syncobj, point, efd,
+                                DRM_SYNCOBJ_WAIT_FLAGS_WAIT_AVAILABLE);
 }
 
 static void
 amdgpu_dri3_syncobj_signaled_eventfd(struct dri3_syncobj *syncobj,
-                                       uint64_t point, int efd)
+                                     uint64_t point, int efd)
 {
-    /* Called when the syncobj has been signaled via eventfd.
-     * For AMDGPU, this is handled by the kernel's eventfd notification.
-     */
-    (void)syncobj;
-    (void)point;
-    (void)efd;
+    amdgpu_dri3_syncobj_eventfd(syncobj, point, efd, 0);
 }
 
-/* Not offered to the server: it ignores timeline points. */
-static _X_UNUSED struct dri3_syncobj *
+/* fd is the client's DRM timeline syncobj; the server closes it. */
+static struct dri3_syncobj *
 amdgpu_dri3_import_syncobj(ClientPtr client, ScreenPtr screen,
                             XID id, int fd)
 {
     struct amdgpu_dri3_syncobj *amdgpu_syncobj;
-    ScrnInfoPtr scrn = xf86ScreenToScrn(screen);
-    AMDGPUEntPtr pAMDGPUEnt = AMDGPUEntPriv(scrn);
-    struct drm_syncobj_create create_args;
-    int ret;
+    int drm_fd = AMDGPUEntPriv(xf86ScreenToScrn(screen))->fd;
+    uint32_t handle;
 
-    /* Create a new syncobj */
-    create_args.handle = 0;
-    create_args.flags = 0;
-    ret = drmIoctl(pAMDGPUEnt->fd, DRM_IOCTL_SYNCOBJ_CREATE, &create_args);
-    if (ret != 0) {
-        xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-                   "Failed to create DRM syncobj: %s\n", strerror(errno));
+    if (drmSyncobjFDToHandle(drm_fd, fd, &handle)) {
+        amdgpu_dri3_syncobj_warn(screen, SYNCOBJ_OP_IMPORT,
+                                 "drmSyncobjFDToHandle", errno);
         return NULL;
-    }
-
-    /* Import the fence if provided */
-    if (fd >= 0) {
-        struct drm_syncobj_handle handle_args;
-
-        memset(&handle_args, 0, sizeof(handle_args));
-        handle_args.handle = create_args.handle;
-        handle_args.flags = DRM_SYNCOBJ_FD_TO_HANDLE_FLAGS_IMPORT_SYNC_FILE;
-        handle_args.fd = fd;
-
-        ret = drmIoctl(pAMDGPUEnt->fd, DRM_IOCTL_SYNCOBJ_FD_TO_HANDLE, &handle_args);
-        if (ret != 0) {
-            xf86DrvMsg(scrn->scrnIndex, X_WARNING,
-                       "Failed to import fence into syncobj: %s\n",
-                       strerror(errno));
-            struct drm_syncobj_destroy destroy_args = {
-                .handle = create_args.handle
-            };
-            drmIoctl(pAMDGPUEnt->fd, DRM_IOCTL_SYNCOBJ_DESTROY, &destroy_args);
-            return NULL;
-        }
     }
 
     amdgpu_syncobj = calloc(1, sizeof(*amdgpu_syncobj));
     if (!amdgpu_syncobj) {
-        struct drm_syncobj_destroy destroy_args = {
-            .handle = create_args.handle
-        };
-        drmIoctl(pAMDGPUEnt->fd, DRM_IOCTL_SYNCOBJ_DESTROY, &destroy_args);
+        drmSyncobjDestroy(drm_fd, handle);
         return NULL;
     }
 
@@ -365,12 +368,44 @@ amdgpu_dri3_import_syncobj(ClientPtr client, ScreenPtr screen,
     amdgpu_syncobj->base.signal = amdgpu_dri3_syncobj_signal;
     amdgpu_syncobj->base.submitted_eventfd = amdgpu_dri3_syncobj_submitted_eventfd;
     amdgpu_syncobj->base.signaled_eventfd = amdgpu_dri3_syncobj_signaled_eventfd;
-    amdgpu_syncobj->syncobj_handle = create_args.handle;
-    amdgpu_syncobj->owns_handle = TRUE;
+    amdgpu_syncobj->syncobj_handle = handle;
 
     (void)client;
 
     return &amdgpu_syncobj->base;
+}
+
+/* Timeline syncobjs with eventfd notification are a property of the amdgpu
+ * kernel driver, so one probe serves every screen. Usable before DRI3 init.
+ */
+Bool
+amdgpu_dri3_syncobj_supported(ScrnInfoPtr scrn)
+{
+    static int supported = -1;
+    int drm_fd = AMDGPUEntPriv(scrn)->fd;
+    const char *reason = NULL;
+    uint64_t cap = 0;
+
+    if (supported >= 0)
+        return supported;
+
+    if (drmGetCap(drm_fd, DRM_CAP_SYNCOBJ_TIMELINE, &cap) != 0 || !cap) {
+        reason = "no timeline syncobjs";
+    } else {
+        /* An invalid handle gives ENOENT only if eventfd is supported. */
+        errno = 0;
+        if (drmSyncobjEventfd(drm_fd, 0, 0, -1, 0) == 0 || errno != ENOENT)
+            reason = "no syncobj eventfd";
+    }
+
+    supported = reason == NULL;
+    if (supported)
+        xf86DrvMsg(scrn->scrnIndex, X_INFO, "DRI3 sync objects: enabled\n");
+    else
+        xf86DrvMsg(scrn->scrnIndex, X_INFO,
+                   "DRI3 sync objects: disabled (%s)\n", reason);
+
+    return supported;
 }
 
 static int open_card_node(ScreenPtr screen, int *out);
@@ -947,6 +982,9 @@ amdgpu_dri3_screen_init(ScreenPtr screen)
 	AMDGPUEntPtr pAMDGPUEnt = AMDGPUEntPriv(scrn);
 
 	pAMDGPUEnt->render_node = drmGetRenderDeviceNameFromFd(pAMDGPUEnt->fd);
+
+	amdgpu_dri3_screen_info.import_syncobj =
+		amdgpu_dri3_syncobj_supported(scrn) ? amdgpu_dri3_import_syncobj : NULL;
 
 	if (!dri3_screen_init(screen, &amdgpu_dri3_screen_info)) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,

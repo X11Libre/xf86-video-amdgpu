@@ -562,6 +562,35 @@ amdgpu_present_screen_init(ScreenPtr screen)
 
 	amdgpu_set_flush_fenced = LoaderSymbol("present_screen_set_flush_fenced");
 
+	/* Every condition below is the same for all screens */
+#ifdef PresentCapabilitySyncobj
+	{
+		Bool (*server_supports_syncobj)(void) =
+			LoaderSymbol("present_scmd_supports_syncobj");
+		const char *reason = NULL;
+
+		if (!amdgpu_set_flush_fenced || !server_supports_syncobj)
+			reason = "server too old";
+		else if (!server_supports_syncobj())
+			reason = "server built without DRI3";
+		else if (!amdgpu_dri3_syncobj_supported(scrn))
+			reason = "no DRI3 sync objects";
+
+		if (reason) {
+			xf86DrvMsg(scrn->scrnIndex, X_INFO,
+				   "Present explicit sync: disabled (%s)\n", reason);
+		} else {
+			amdgpu_present_screen_info.capabilities |=
+				PresentCapabilitySyncobj;
+			xf86DrvMsg(scrn->scrnIndex, X_INFO,
+				   "Present explicit sync: enabled\n");
+		}
+	}
+#else
+	xf86DrvMsg(scrn->scrnIndex, X_INFO,
+		   "Present explicit sync: disabled (protocol headers too old)\n");
+#endif
+
 	if (!present_screen_init(screen, &amdgpu_present_screen_info)) {
 		xf86DrvMsg(xf86ScreenToScrn(screen)->scrnIndex, X_WARNING,
 			   "Present extension disabled because present_screen_init failed\n");

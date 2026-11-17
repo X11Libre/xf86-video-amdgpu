@@ -5,12 +5,14 @@
  *
  *   cc -o present-syncobj present-syncobj.c \
  *      $(pkg-config --cflags --libs xcb xcb-dri3 xcb-present libdrm)
- *   ./present-syncobj [--fullscreen] [--device /dev/dri/renderD128]
+ *   ./present-syncobj [--fullscreen] [--plain] [--device /dev/dri/renderD128]
  *
  * Windowed, the present should be a copy; its release point must stay
  * unsignalled until the acquire point is signalled, then signal.
  * With --fullscreen the present should be a flip; its release point must
  * signal only after a second present replaces it on the screen.
+ * --plain uses PresentPixmap without sync objects instead and checks
+ * IdleNotify the same way: after the copy, or once a flip is replaced.
  * The exit status is 0 only if every check passed.
  */
 
@@ -34,6 +36,7 @@
 static xcb_connection_t *conn;
 static uint8_t present_opcode;
 static int complete_mode[MAX_SERIAL];
+static int idle_serial[MAX_SERIAL];
 static int idle_notifies;
 static int failures;
 
@@ -82,13 +85,19 @@ handle_event(xcb_generic_event_t *ev)
             c->serial < MAX_SERIAL)
             complete_mode[c->serial] = c->mode;
     } else if (ge->event_type == XCB_PRESENT_IDLE_NOTIFY) {
+        xcb_present_idle_notify_event_t *i = (void *) ev;
+
         idle_notifies++;
+        if (i->serial < MAX_SERIAL)
+            idle_serial[i->serial]++;
     }
 }
 
-/* Process events until serial's CompleteNotify arrives or timeout_ms ends. */
+/* Process events until serial's CompleteNotify (or, with idle, its
+ * IdleNotify) arrives or timeout_ms ends.
+ */
 static int
-wait_complete(uint32_t serial, int timeout_ms)
+wait_event(uint32_t serial, int idle, int timeout_ms)
 {
     uint64_t end = now_ns() + (uint64_t) timeout_ms * 1000000ull;
     struct pollfd pfd = { .fd = xcb_get_file_descriptor(conn), .events = POLLIN };
@@ -102,7 +111,7 @@ wait_complete(uint32_t serial, int timeout_ms)
             handle_event(ev);
             free(ev);
         }
-        if (complete_mode[serial] >= 0)
+        if (idle ? idle_serial[serial] > 0 : complete_mode[serial] >= 0)
             return 1;
 
         now = now_ns();
@@ -110,6 +119,18 @@ wait_complete(uint32_t serial, int timeout_ms)
             return 0;
         poll(&pfd, 1, (int) ((end - now) / 1000000ull) + 1);
     }
+}
+
+static int
+wait_complete(uint32_t serial, int timeout_ms)
+{
+    return wait_event(serial, 0, timeout_ms);
+}
+
+static int
+wait_idle(uint32_t serial, int timeout_ms)
+{
+    return wait_event(serial, 1, timeout_ms);
 }
 
 /* Drain events without blocking. */
@@ -206,6 +227,62 @@ present_synced(xcb_window_t window, xcb_pixmap_t pixmap, uint32_t serial,
     return 1;
 }
 
+static int
+present_plain(xcb_window_t window, xcb_pixmap_t pixmap, uint32_t serial)
+{
+    xcb_generic_error_t *err;
+
+    err = xcb_request_check(conn,
+        xcb_present_pixmap_checked(conn, window, pixmap, serial,
+                                   XCB_NONE, XCB_NONE, 0, 0, XCB_NONE,
+                                   XCB_NONE, XCB_NONE,
+                                   XCB_PRESENT_OPTION_NONE, 0, 0, 0,
+                                   0, NULL));
+    if (err) {
+        fprintf(stderr, "PresentPixmap: X error %d\n", err->error_code);
+        free(err);
+        return 0;
+    }
+    return 1;
+}
+
+/* PresentPixmap without sync objects: IdleNotify must follow the copy, or
+ * the replacement of a flipped buffer.
+ */
+static void
+run_plain(xcb_screen_t *screen, xcb_window_t window, uint16_t w, uint16_t h,
+          int fullscreen)
+{
+    xcb_pixmap_t pix1, pix2 = XCB_NONE;
+
+    pix1 = filled_pixmap(screen, window, w, h, 0x00c04040);
+    check(present_plain(window, pix1, 1), "PresentPixmap accepted");
+    check(wait_complete(1, 2000), "CompleteNotify");
+    printf("present 1 mode: %s\n", mode_name(complete_mode[1]));
+
+    if (complete_mode[1] == XCB_PRESENT_COMPLETE_MODE_FLIP) {
+        drain_events();
+        check(idle_serial[1] == 0, "no IdleNotify while the flipped buffer is on screen");
+
+        pix2 = filled_pixmap(screen, window, w, h, 0x004040c0);
+        check(present_plain(window, pix2, 2), "second PresentPixmap accepted");
+        check(wait_complete(2, 2000), "second CompleteNotify");
+        printf("present 2 mode: %s\n", mode_name(complete_mode[2]));
+        check(wait_idle(1, 1000), "IdleNotify for present 1 after the next present");
+    } else {
+        if (fullscreen)
+            printf("note: present 1 was not flipped (a compositor or another "
+                   "window may prevent flipping)\n");
+        check(wait_idle(1, 1000), "IdleNotify after the copy");
+    }
+
+    xcb_destroy_window(conn, window);
+    xcb_free_pixmap(conn, pix1);
+    if (pix2 != XCB_NONE)
+        xcb_free_pixmap(conn, pix2);
+    xcb_flush(conn);
+}
+
 int
 main(int argc, char **argv)
 {
@@ -222,15 +299,19 @@ main(int argc, char **argv)
     xcb_dri3_syncobj_t acquire_id, release_id;
     uint16_t w = 256, h = 256;
     xcb_generic_event_t *ev;
-    int fd, i;
+    int plain = 0;
+    int fd = -1, i;
 
     for (i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "--fullscreen"))
             fullscreen = 1;
+        else if (!strcmp(argv[i], "--plain"))
+            plain = 1;
         else if (!strcmp(argv[i], "--device") && i + 1 < argc)
             device = argv[++i];
         else {
-            fprintf(stderr, "usage: %s [--fullscreen] [--device PATH]\n", argv[0]);
+            fprintf(stderr, "usage: %s [--fullscreen] [--plain] [--device PATH]\n",
+                    argv[0]);
             return 2;
         }
     }
@@ -259,15 +340,19 @@ main(int argc, char **argv)
     }
     printf("DRI3 %u.%u, Present %u.%u\n", dri3_ver->major_version, dri3_ver->minor_version,
            present_ver->major_version, present_ver->minor_version);
-    check(dri3_ver->major_version > 1 ||
-          (dri3_ver->major_version == 1 && dri3_ver->minor_version >= 4), "DRI3 1.4");
+    if (!plain)
+        check(dri3_ver->major_version > 1 ||
+              (dri3_ver->major_version == 1 && dri3_ver->minor_version >= 4),
+              "DRI3 1.4");
     free(dri3_ver);
     free(present_ver);
 
-    fd = open(device, O_RDWR | O_CLOEXEC);
-    if (fd < 0) {
-        fprintf(stderr, "%s: %s\n", device, strerror(errno));
-        return 2;
+    if (!plain) {
+        fd = open(device, O_RDWR | O_CLOEXEC);
+        if (fd < 0) {
+            fprintf(stderr, "%s: %s\n", device, strerror(errno));
+            return 2;
+        }
     }
 
     if (fullscreen) {
@@ -302,6 +387,13 @@ main(int argc, char **argv)
     caps = xcb_present_query_capabilities_reply(conn,
                xcb_present_query_capabilities(conn, window), NULL);
     printf("Present capabilities: 0x%x\n", caps ? caps->capabilities : 0);
+    if (plain) {
+        free(caps);
+        run_plain(screen, window, w, h, fullscreen);
+        xcb_disconnect(conn);
+        printf("%s: %d check(s) failed\n", failures ? "FAIL" : "PASS", failures);
+        return failures ? 1 : 0;
+    }
     check(caps && (caps->capabilities & XCB_PRESENT_CAPABILITY_SYNCOBJ),
           "PresentCapabilitySyncobj advertised");
     free(caps);

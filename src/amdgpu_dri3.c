@@ -42,6 +42,10 @@
 #include <poll.h>
 #include <sys/eventfd.h>
 
+#ifndef ETIME /* FreeBSD, DragonFly */
+#define ETIME ETIMEDOUT
+#endif
+
 /* DRI3 Sync Object support (version 1.4) */
 
 #include <xf86drm.h>

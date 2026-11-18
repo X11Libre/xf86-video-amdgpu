@@ -39,11 +39,14 @@
 #include <drm_fourcc.h>
 #include <amdgpu_drm.h>
 #include <unistd.h>
+
+#ifdef HAVE_SYS_EVENTFD_H
 #include <poll.h>
 #include <sys/eventfd.h>
 
 #ifndef ETIME /* FreeBSD, DragonFly */
 #define ETIME ETIMEDOUT
+#endif
 #endif
 
 /* DRI3 Sync Object support (version 1.4) */
@@ -133,6 +136,7 @@ amdgpu_tiling_info_to_modifier(uint64_t tiling_info, int asic_family)
 	return DRM_FORMAT_MOD_INVALID;
 }
 
+#ifdef HAVE_SYS_EVENTFD_H
 struct amdgpu_dri3_syncobj {
     struct dri3_syncobj base;
     uint32_t syncobj_handle;  /* DRM timeline syncobj handle */
@@ -378,6 +382,7 @@ amdgpu_dri3_import_syncobj(ClientPtr client, ScreenPtr screen,
 
     return &amdgpu_syncobj->base;
 }
+#endif /* HAVE_SYS_EVENTFD_H */
 
 /* Timeline syncobjs with eventfd notification are a property of the amdgpu
  * kernel driver, so one probe serves every screen. Usable before DRI3 init.
@@ -386,12 +391,14 @@ Bool
 amdgpu_dri3_syncobj_supported(ScrnInfoPtr scrn)
 {
     static int supported = -1;
-    int drm_fd = AMDGPUEntPriv(scrn)->fd;
     const char *reason = NULL;
-    uint64_t cap = 0;
 
     if (supported >= 0)
         return supported;
+
+#ifdef HAVE_SYS_EVENTFD_H
+    int drm_fd = AMDGPUEntPriv(scrn)->fd;
+    uint64_t cap = 0;
 
     if (drmGetCap(drm_fd, DRM_CAP_SYNCOBJ_TIMELINE, &cap) != 0 || !cap) {
         reason = "no timeline syncobjs";
@@ -401,6 +408,9 @@ amdgpu_dri3_syncobj_supported(ScrnInfoPtr scrn)
         if (drmSyncobjEventfd(drm_fd, 0, 0, -1, 0) == 0 || errno != ENOENT)
             reason = "no syncobj eventfd";
     }
+#else
+    reason = "built without eventfd";
+#endif
 
     supported = reason == NULL;
     if (supported)
@@ -987,8 +997,12 @@ amdgpu_dri3_screen_init(ScreenPtr screen)
 
 	pAMDGPUEnt->render_node = drmGetRenderDeviceNameFromFd(pAMDGPUEnt->fd);
 
+#ifdef HAVE_SYS_EVENTFD_H
 	amdgpu_dri3_screen_info.import_syncobj =
 		amdgpu_dri3_syncobj_supported(scrn) ? amdgpu_dri3_import_syncobj : NULL;
+#else
+	amdgpu_dri3_syncobj_supported(scrn); /* logs why sync objects are off */
+#endif
 
 	if (!dri3_screen_init(screen, &amdgpu_dri3_screen_info)) {
 		xf86DrvMsg(scrn->scrnIndex, X_WARNING,

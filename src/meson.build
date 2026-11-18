@@ -64,6 +64,7 @@ amdgpu_drv_libs = [
 if libudev_dep.found()
   amdgpu_drv_libs += libudev_dep
 endif
+amdgpu_drv_libs += eventfd_dep
 
 shared_module(
   'amdgpu_drv',

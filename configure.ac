@@ -118,6 +118,27 @@ if test "x$enable_udev" != "xno"; then
 fi
 AM_CONDITIONAL(LIBUDEV, test x$LIBUDEV = xyes)
 
+# eventfd for DRI3 sync objects: from libc, or from epoll-shim (DragonFly)
+AC_CHECK_HEADER([sys/eventfd.h], [have_eventfd=yes], [have_eventfd=no])
+if test "x$have_eventfd" = xno; then
+	PKG_CHECK_MODULES(EPOLL_SHIM, [epoll-shim], [
+		SAVE_EVENTFD_CPPFLAGS="$CPPFLAGS"
+		CPPFLAGS="$CPPFLAGS $EPOLL_SHIM_CFLAGS"
+		AS_UNSET([ac_cv_header_sys_eventfd_h])
+		AC_CHECK_HEADER([sys/eventfd.h], [have_eventfd=yes])
+		CPPFLAGS="$SAVE_EVENTFD_CPPFLAGS"
+	], [:])
+	if test "x$have_eventfd" = xno; then
+		EPOLL_SHIM_CFLAGS=
+		EPOLL_SHIM_LIBS=
+	fi
+fi
+if test "x$have_eventfd" = xyes; then
+	AC_DEFINE(HAVE_SYS_EVENTFD_H, 1, [sys/eventfd.h, needed for DRI3 sync objects])
+else
+	AC_MSG_WARN([sys/eventfd.h not found, building without DRI3 sync objects])
+fi
+
 SAVE_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $XORG_CFLAGS $GBM_CFLAGS"
 

@@ -38,6 +38,20 @@ have_regionduplicate = cc.has_header('regionstr.h', args: ['-I' + xorg_include])
 have_xf86CursorResetCursor = cc.has_header('xf86Cursor.h', args: ['-I' + xorg_include])
 have_misyncshm = cc.has_header('misyncshm.h', args: ['-I' + xorg_include])
 
+# eventfd for DRI3 sync objects: from libc, or from epoll-shim (DragonFly)
+eventfd_dep = []
+have_eventfd = cc.has_header('sys/eventfd.h')
+if not have_eventfd
+  epoll_shim_dep = dependency('epoll-shim', required: false)
+  if epoll_shim_dep.found() and cc.has_header('sys/eventfd.h', dependencies: epoll_shim_dep)
+    have_eventfd = true
+    eventfd_dep = epoll_shim_dep
+  endif
+endif
+if not have_eventfd
+  warning('sys/eventfd.h not found, building without DRI3 sync objects')
+endif
+
 # Config header
 version = meson.project_version()
 varr = version.split('.')
@@ -51,6 +65,7 @@ config_h.set('HAVE_FBGLYPHS', have_fbGlyphs ? 1 : 0)
 config_h.set('HAVE_GBM_BO_USE_FRONT_RENDERING', have_gbm_bo_use_front_rendering ? 1 : 0)
 config_h.set('HAVE_GBM_BO_USE_LINEAR', have_gbm_bo_use_linear ? 1 : 0)
 config_h.set('HAVE_LIBUDEV', libudev_dep.found() ? 1 : 0)
+config_h.set('HAVE_SYS_EVENTFD_H', have_eventfd ? 1 : false)
 config_h.set('HAVE_REGIONDUPLICATE', have_regionduplicate ? 1 : 0)
 config_h.set('HAVE_XF86_CURSOR_RESET_CURSOR', have_xf86CursorResetCursor ? 1 : 0)
 config_h.set('PACKAGE_NAME', meson.project_name())

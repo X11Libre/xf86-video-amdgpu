@@ -3803,6 +3803,7 @@ Bool drmmode_setup_colormap(ScreenPtr pScreen, ScrnInfoPtr pScrn)
 	return TRUE;
 }
 
+#ifdef HAVE_LIBUDEV
 static Bool
 drmmode_find_output(ScrnInfoPtr scrn, int output_id, int *num_dvi,
 		    int *num_hdmi)
@@ -3834,7 +3835,6 @@ drmmode_find_output(ScrnInfoPtr scrn, int output_id, int *num_dvi,
 	return FALSE;
 }
 
-#ifdef HAVE_LIBUDEV
 static void
 amdgpu_mode_hotplug(ScrnInfoPtr scrn, drmmode_ptr drmmode)
 {

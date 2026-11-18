@@ -65,6 +65,8 @@ jobs:
                 echo "ABI_WORK=$RUNNER_TEMP/abi" >> "$GITHUB_ENV"
                 MACHINE=$(gcc -dumpmachine)
                 echo "PKG_CONFIG_PATH=$HOME/x11/share/pkgconfig:$HOME/x11/lib/$MACHINE/pkgconfig:$HOME/x11/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}" >> "$GITHUB_ENV"
+                # the staged servers link libraries from here (e.g. libxcvt)
+                echo "LD_LIBRARY_PATH=$HOME/x11/lib/$MACHINE:$HOME/x11/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" >> "$GITHUB_ENV"
 
             # The ABI tools come with the xserver SDK installed in ~/x11.
             - name: server symbols, release branches

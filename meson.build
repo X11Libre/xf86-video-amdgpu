@@ -54,20 +54,21 @@ endif
 
 # Config header
 version = meson.project_version()
-varr = version.split('.')
+version_parts = version.split('-') # split on prerelease
+varr = version_parts[0].split('.')
 major_version = varr[0]
 minor_version = varr[1]
 micro_version = varr[2]
 config_h = configuration_data()
-config_h.set('HAVE_DRI3_H', have_dri3_h ? 1 : 0)
-config_h.set('HAVE_MISYNCSHM_H', have_misyncshm ? 1 : 0)
-config_h.set('HAVE_FBGLYPHS', have_fbGlyphs ? 1 : 0)
-config_h.set('HAVE_GBM_BO_USE_FRONT_RENDERING', have_gbm_bo_use_front_rendering ? 1 : 0)
-config_h.set('HAVE_GBM_BO_USE_LINEAR', have_gbm_bo_use_linear ? 1 : 0)
-config_h.set('HAVE_LIBUDEV', libudev_dep.found() ? 1 : 0)
+config_h.set('HAVE_DRI3_H', have_dri3_h ? 1 : false)
+config_h.set('HAVE_MISYNCSHM_H', have_misyncshm ? 1 : false)
+config_h.set('HAVE_FBGLYPHS', have_fbGlyphs ? 1 : false)
+config_h.set('HAVE_GBM_BO_USE_FRONT_RENDERING', have_gbm_bo_use_front_rendering ? 1 : false)
+config_h.set('HAVE_GBM_BO_USE_LINEAR', have_gbm_bo_use_linear ? 1 : false)
+config_h.set('HAVE_LIBUDEV', libudev_dep.found() ? 1 : false)
 config_h.set('HAVE_SYS_EVENTFD_H', have_eventfd ? 1 : false)
-config_h.set('HAVE_REGIONDUPLICATE', have_regionduplicate ? 1 : 0)
-config_h.set('HAVE_XF86_CURSOR_RESET_CURSOR', have_xf86CursorResetCursor ? 1 : 0)
+config_h.set('HAVE_REGIONDUPLICATE', have_regionduplicate ? 1 : false)
+config_h.set('HAVE_XF86_CURSOR_RESET_CURSOR', have_xf86CursorResetCursor ? 1 : false)
 config_h.set('PACKAGE_NAME', meson.project_name())
 config_h.set('PACKAGE_VERSION', version)
 config_h.set('PACKAGE_VERSION_MAJOR', major_version)

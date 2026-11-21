@@ -54,7 +54,10 @@ endif
 
 # Config header
 version = meson.project_version()
-varr = version.split('.')
+# Keep a pre-release suffix such as "-rc1" out of the integer versions.
+version_number = version.split('-')[0]
+version_suffix = version.replace(version_number, '')
+varr = version_number.split('.')
 major_version = varr[0]
 minor_version = varr[1]
 micro_version = varr[2]
@@ -73,6 +76,7 @@ config_h.set('PACKAGE_VERSION', version)
 config_h.set('PACKAGE_VERSION_MAJOR', major_version)
 config_h.set('PACKAGE_VERSION_MINOR', minor_version)
 config_h.set('PACKAGE_VERSION_PATCHLEVEL', micro_version)
+config_h.set_quoted('PACKAGE_VERSION_SUFFIX', version_suffix)
 configure_file(
   output: 'config.h',
   configuration: config_h

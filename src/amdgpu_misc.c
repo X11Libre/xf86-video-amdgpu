@@ -65,3 +65,7 @@ _X_EXPORT XF86ModuleData amdgpuModuleData = {
 	AMDGPUSetup,
 	NULL
 };
+
+#ifdef XF86_MODULE_VERSION_SUFFIX
+XF86_MODULE_VERSION_SUFFIX(amdgpu, AMDGPU_VERSION_SUFFIX);
+#endif

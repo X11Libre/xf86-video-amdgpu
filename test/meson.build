@@ -7,5 +7,5 @@ if abi_tools_dir != ''
        args: [abi_tools_dir / 'check-private-includes.py',
               meson.project_build_root()])
 else
-  warning('xorg-server SDK has no abi_tools_dir: private-includes test not built')
+  message('xorg-server SDK has no abi_tools_dir: private-includes test not built')
 endif

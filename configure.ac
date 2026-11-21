@@ -23,7 +23,7 @@
 # Initialize Autoconf
 AC_PREREQ([2.60])
 AC_INIT([xlibre-xf86-video-amdgpu],
-        [25.1.2],
+        [25.1.3-rc1],
         [https://github.com/X11Libre/xf86-video-amdgpu/issues],
         [xlibre-xf86-video-amdgpu])
 

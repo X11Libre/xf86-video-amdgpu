@@ -54,7 +54,8 @@ endif
 
 # Config header
 version = meson.project_version()
-varr = version.split('.')
+version_parts = version.split('-') # split on prerelease
+varr = version_parts[0].split('.')
 major_version = varr[0]
 minor_version = varr[1]
 micro_version = varr[2]
